@@ -202,3 +202,8 @@ schools:
     name: "河南工业大学"
     initial: "H"
     resource_folder: "HAUT"
+
+  - id: "AHSZU"
+    name: "宿州学院"
+    initial: "S"
+    resource_folder: "AHSZU"    
