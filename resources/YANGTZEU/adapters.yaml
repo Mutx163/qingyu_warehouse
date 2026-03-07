@@ -1,3 +1,4 @@
+# resources\YANGTZEU\adapters.yaml
 adapters:
   - adapter_id: "YU_01"
     adapter_name: "长江大学教务系统适配"
