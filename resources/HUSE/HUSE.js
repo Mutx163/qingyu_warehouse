@@ -116,108 +116,156 @@ function extractCoursesFromDoc(doc) {
 
 /**
  * 根据当前日期返回对应学期的作息时间表。
- * 5月1日至9月30日期间使用夏季作息，其余时间使用春秋冬季作息。
+ * 通过配置参数动态推算各节课起止时间，支持早、午、晚三段以及
+ * 普通课间 / 中课间 / 大课间三级课间时长。
+ * 5月～9月使用夏季作息，其余月份使用春秋冬季作息。
  * @returns {object[]} 节次时间数组，每项包含 number/startTime/endTime
  */
 function getPresetTimeSlots() {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
-    // 判断是否处于夏季作息期间（5月1日 ~ 9月30日）
-    const isSummer = (month > 5) || (month === 5 && day >= 1) || (month < 10) && (month > 4);
+    const month = new Date().getMonth() + 1;
+    const isSummer = month >= 5 && month <= 9;
 
-    if (isSummer) {
-        // 夏季作息
-        return [
-            { number: 1, startTime: "08:10", endTime: "08:55" },
-            { number: 2, startTime: "09:05", endTime: "09:50" },
-            { number: 3, startTime: "10:10", endTime: "10:55" },
-            { number: 4, startTime: "11:05", endTime: "11:50" },
-            { number: 5, startTime: "14:45", endTime: "15:30" },
-            { number: 6, startTime: "15:40", endTime: "16:25" },
-            { number: 7, startTime: "16:40", endTime: "17:25" },
-            { number: 8, startTime: "17:35", endTime: "18:20" },
-            { number: 9, startTime: "19:30", endTime: "20:15" },
-            { number: 10, startTime: "20:25", endTime: "21:10" },
-            { number: 11, startTime: "21:20", endTime: "22:05" }
-        ];
-    } else {
-        // 春秋冬季作息
-        return [
-            { number: 1, startTime: "08:20", endTime: "09:05" },
-            { number: 2, startTime: "09:05", endTime: "10:00" },
-            { number: 3, startTime: "10:20", endTime: "11:05" },
-            { number: 4, startTime: "11:15", endTime: "12:00" },
-            { number: 5, startTime: "14:30", endTime: "15:15" },
-            { number: 6, startTime: "15:25", endTime: "16:10" },
-            { number: 7, startTime: "16:25", endTime: "17:10" },
-            { number: 8, startTime: "17:20", endTime: "18:05" },
-            { number: 9, startTime: "19:10", endTime: "19:55" },
-            { number: 10, startTime: "20:05", endTime: "20:50" },
-            { number: 11, startTime: "21:00", endTime: "21:45" }
-        ];
+    // ── 作息参数配置 ──────────────────────────────────────────────
+    const params = isSummer ? {
+        // 夏季作息参数
+        morningStartTime:     "08:10",  // 早上第 1 节开始时间
+        afternoonStartTime:   "14:45",  // 中午第 1 节开始时间（第 5 节）
+        eveningStartTime:     "19:30",  // 晚上第 1 节开始时间（第 9 节）
+        classDuration:        45,       // 单节课时长（分钟）
+        normalBreakDuration:  10,       // 普通课间时长（分钟）
+        mediumBreakDuration:  15,       // 中课间时长（分钟）
+        longBreakDuration:    20,       // 大课间时长（分钟）
+        longBreakAfterSlot:   2,        // 大课间插入位置（第 N 节课后）
+        mediumBreakAfterSlot: 6,        // 中课间插入位置（第 N 节课后）
+    } : {
+        // 春秋冬季作息参数
+        morningStartTime:     "08:20",
+        afternoonStartTime:   "14:30",
+        eveningStartTime:     "19:10",
+        classDuration:        45,
+        normalBreakDuration:  10,
+        mediumBreakDuration:  15,
+        longBreakDuration:    20,
+        longBreakAfterSlot:   2,
+        mediumBreakAfterSlot: 6,
+    };
+
+    // 早上 4 节 / 下午 4 节 / 晚上 3 节
+    const SESSION_SLOTS   = [4, 4, 3];
+    const SESSION_STARTS  = [
+        params.morningStartTime,
+        params.afternoonStartTime,
+        params.eveningStartTime,
+    ];
+
+    const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    const toTimeStr = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+    const { classDuration, normalBreakDuration, mediumBreakDuration, longBreakDuration,
+            longBreakAfterSlot, mediumBreakAfterSlot } = params;
+
+    const result = [];
+    let slotNumber = 1;
+
+    for (let s = 0; s < SESSION_SLOTS.length; s++) {
+        let cursor = toMinutes(SESSION_STARTS[s]);
+        const count = SESSION_SLOTS[s];
+
+        for (let i = 0; i < count; i++) {
+            result.push({
+                number:    slotNumber,
+                startTime: toTimeStr(cursor),
+                endTime:   toTimeStr(cursor + classDuration),
+            });
+            cursor += classDuration;
+            // 非本段末节时，按位置选择课间时长
+            if (i < count - 1) {
+                if      (slotNumber === longBreakAfterSlot)   cursor += longBreakDuration;
+                else if (slotNumber === mediumBreakAfterSlot) cursor += mediumBreakDuration;
+                else                                          cursor += normalBreakDuration;
+            }
+            slotNumber++;
+        }
     }
-}
 
+    return result;
+}
 /**
  * 从教学周历页面推断学期开学日期（YYYY-MM-DD）。
  * 解析策略：
  * 1) 优先读取第 1 周对应的周一日期；
  * 2) 若未命中，则在周历表中收集全部日期并取最小值兜底。
- * @returns {Promise<string|null>} 开学日期字符串；无法解析时返回 null
+ * @returns {Promise<{ semesterStartDate: string|null, totalWeeks: number|null }>} 开学日期和总周数；无法解析时返回 null
  */
-async function getStartDate() {
-    // 请求教学周历页面（包含每周日期映射）
+async function getStartDateandTotalWeeks() {
     const response = await fetch('/jsxsd/jxzl/jxzl_query', { method: 'GET' });
+    if (!response.ok) {
+        throw new Error(`周历请求失败：${response.status}`);
+    }
+
     const htmlText = await response.text();
     const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+    const table = doc.querySelector('#kbtable');
 
-    // 周历主表格，日期信息存放在单元格 title 属性中
-    const table = doc.querySelector("#kbtable");
     if (!table) {
-        console.log("未找到周历表格 #kbtable");
-        return null;
+        console.log('未找到周历表格 #kbtable');
+        return { semesterStartDate: null, totalWeeks: null };
     }
 
-    // 将“YYYY年M月D日”转为“YYYY-MM-DD”
     const parseCNDate = (text) => {
-        const m = String(text).match(/(\d{4})年(\d{1,2})月(\d{1,2})/);
+        const m = String(text || '').match(/(\d{4})年(\d{1,2})月(\d{1,2})/);
         if (!m) return null;
         const [, y, mo, d] = m;
-        return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
     };
 
-    // 优先取“第1周 + 星期一”
-    const week1Row = Array.from(table.querySelectorAll("tr")).find((tr) => {
-        const first = tr.cells?.[0]?.textContent?.trim();
-        return first === "1";
+    let week1Monday = null;
+    let minDate = null;
+    let totalWeeks = null;
+
+    const rows = table.querySelectorAll('tr');
+    if(!rows || rows.length === 0) {
+        console.log('周历表格 #kbtable 中未找到任何行');
+        return { semesterStartDate: null, totalWeeks: null };
+    }
+
+    rows.forEach((row) => {
+        const firstCellText = row.cells?.[0]?.textContent?.trim() || '';
+        const week = /^\d+$/.test(firstCellText) ? Number(firstCellText) : NaN;
+
+        if (!Number.isNaN(week)) {
+            totalWeeks = Math.max(totalWeeks, week);
+            if (week === 1 && !week1Monday) {
+                const candidate = parseCNDate(row.cells?.[1]?.getAttribute('title'));
+                if (candidate) week1Monday = candidate;
+            }
+        }
+
+        row.querySelectorAll('td[title]').forEach((td) => {
+            const candidate = parseCNDate(td.getAttribute('title'));
+            if (!candidate) return;
+            if (!minDate || candidate < minDate) {
+                minDate = candidate;
+            }
+        });
     });
 
-    let start = null;
-    if (week1Row && week1Row.cells[1]) {
-        start = parseCNDate(week1Row.cells[1].getAttribute("title"));
-    }
+    const semesterStartDate = week1Monday || minDate;
+    console.log('开学日期：', semesterStartDate || '未找到');
+    console.log('总周数：', totalWeeks);
 
-    // 兜底：从所有日期里取最小值
-    if (!start) {
-        const allDates = Array.from(table.querySelectorAll("td[title]"))
-            .map((td) => parseCNDate(td.getAttribute("title")))
-            .filter(Boolean)
-            .sort();
-        start = allDates[0] || null;
-    }
-
-    console.log("开学日期：", start || "未找到");
-    return start;
+    return { semesterStartDate, totalWeeks };
 }
+
 /**
  * 返回全局课表基础配置（单节课时长与课间休息时长）。
- * @returns {Promise<{ semesterStartDate: string|null, defaultClassDuration: number, defaultBreakDuration: number }>}
+ * @returns {Promise<{ semesterStartDate: string|null, semesterTotalWeeks: number, defaultClassDuration: number, defaultBreakDuration: number }>}
  */
 async function getCourseConfig() {
-    const semesterStartDate = await getStartDate();
+    const { semesterStartDate, totalWeeks } = await getStartDateandTotalWeeks();
     return {
         semesterStartDate: semesterStartDate,
+        semesterTotalWeeks: totalWeeks,
         defaultClassDuration: 45,
         defaultBreakDuration: 10
     };
@@ -256,8 +304,8 @@ async function runImportFlow() {
                 if (opt.hasAttribute('selected')) defaultIndex = idx;
             });
         }
-        // 始终选取列表末尾的最新学期
-        defaultIndex = semesters.length - 1;
+        // 始终选取列表首的最新学期
+        defaultIndex = 0;
         console.log(`[HUSE] 共找到 ${semesters.length} 个学期，当前使用：${semesters[defaultIndex] || '未知'}`);
 
         const courses = extractCoursesFromDoc(doc);
