@@ -328,6 +328,11 @@ schools:
     initial: "G"
     resource_folder: "GUIT"
 
+  - id: "DLMU"
+    name: "大连海事大学"
+    initial: "D"
+    resource_folder: "DLMU"
+
   - id: "HIIT"
     name: "河南信息科技学院"
     initial: "H"
