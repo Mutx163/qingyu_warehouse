@@ -68,14 +68,13 @@ async function extractCourseTime() {
         const rawSections = res.datas.getMySectionList;
 
         const cleanSections = rawSections
-        .filter(item => item.name.includes("第")) // 只保留名字里带“第”字的，过滤掉午餐/晚餐
+        .filter(item => item.name.includes("第")) 
         .map(item => ({
             "number": parseInt(item.name.replace(/[^0-9]/g, "")),
-            startSection: item.startTime,
-            endSection: item.endTime
+            "startTime": item.startTime, // 必须叫 startTime
+            "endTime": item.endTime      // 必须叫 endTime
         }))
-            .sort((a, b) => a.number - b.number);
-        
+        .sort((a, b) => a.number - b.number);
         console.log(cleanSections)
         //开学时间 课程周数
         
@@ -97,7 +96,7 @@ async function extractCourseTime() {
             currentSemester: AppConfig.currentSemester,
             totalWeeks,
             startDate,
-            cleanSections
+            cleanSections  //每日课程时间  timeSlots!!!
         };
     
     }
@@ -198,12 +197,22 @@ function parseDetailLine(line) {
     const building = parts[2] || "";
     const location = parts[3] || "";
 
+    let finalPosition = "";
+
+    if (location.includes(building)) {
+        finalPosition = location; 
+    } else {
+        finalPosition = building + " " + location;
+    }
+
+    finalPosition = finalPosition.trim();
+
     return {
         rawWeek,
         teacher,
         building,
         location,
-        weeks: parseWeeks(rawWeek) // 假设你有这个解析 1-4,6周 到数组的函数
+        weeks: parseWeeks(rawWeek) 
     };
 }
 
@@ -254,6 +263,13 @@ function extractAndMergeCourse(titleDetail) {
 }
 
 
+function fixSection(section) {
+    let realSection = section;
+    if (section > 5) realSection -= 1; // 减去中午那节课
+    if (section > 10) realSection -= 1; // 减去晚餐那节课
+    return realSection;
+}
+
 /**
  * 解析函数  Gemini所写  
  */
@@ -281,13 +297,13 @@ function parseAllCourses(rawArrangedList) {
                         startSection: sSection,
                         endSection: eSection,
                         weeks: seg.weeks,
-                        startTime: item.beginTime, // 记录开始时间防止后续需要
-                        endTime: item.endTime
+                        startTime: seg.startTime, // 记录开始时间防止后续需要
+                        endTime: seg.endTime
                     });
                 }
             });
         }
-    });
+    }); 
 
     return finalCourses;
 }
@@ -356,6 +372,7 @@ async function saveConfig(baseInfo) {
     const configData = {
         semesterStartDate: baseInfo.startDate,
         semesterTotalWeeks: baseInfo.totalWeeks || 20,
+
     };
     try {
         const configSuccess = await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(configData));
@@ -393,6 +410,16 @@ async function runImportFlow() {
         // 4. 保存配置数据 (存日期、周数)
         const configSaveResult = await saveConfig(dataBundle.baseInfo);
         if (!configSaveResult) return;
+
+        //时间段保存
+        try {
+            const slotJson = JSON.stringify(dataBundle.baseInfo.cleanSections);
+            console.log("写入时间段数据:", slotJson);
+            await window.AndroidBridgePromise.savePresetTimeSlots(slotJson);
+        } catch (e) {
+            console.error("时间段写入失败:", e);
+            // 这里可以选择跳过或报错
+        }
 
         // 5. 课程数据保存
         const saveResult = await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(finalCourses));
