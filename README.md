@@ -58,21 +58,7 @@
 
   ---
 
-  ## 仓库结构
 
-  ```text
-  index/
-    root_index.yaml        # 学校/工具总索引
-
-  resources/
-    <resource_folder>/
-      adapters.yaml        # 当前学校/工具的适配器配置
-      xxx.js               # 具体适配脚本
-
-  scripts/
-    ...                    # 索引或构建辅助脚本
-
-  ———
 
   ## 开发流程
 
