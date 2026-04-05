@@ -1,0 +1,37 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+
+# Local testing artifacts
+.local/
+.testing/
+.cache/
+
+# Build / generated
+/dist/
+/build/
+coverage/
+
+# Node / script helpers
+node_modules/
+
+# Python helpers
+__pycache__/
+*.pyc
+
+# Env / secrets
+.env
+.env.*
+*.secret
+*.secrets
+
+# Keep repo resources only; do not ignore index/resources/proto/scripts
