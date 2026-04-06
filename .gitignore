@@ -35,3 +35,6 @@ __pycache__/
 *.secrets
 
 # Keep repo resources only; do not ignore index/resources/proto/scripts
+
+# OMX local state
+.omx/
