@@ -1,39 +1,488 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>JS Importer Test</title>
-    <style>
-        body { font-family: sans-serif; padding: 15px; width: 250px; background-color: #f4f4f4; }
-        h4 { margin-top: 0; color: #333; }
-        button {
-            width: 100%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover { background-color: #0056b3; }
-        #statusMessage {
-            margin-top: 15px;
-            font-size: 13px;
-            color: #555;
-            text-align: center;
-        }
-        .info { color: #007bff; }
-        .success { color: green; }
-        .error { color: red; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>轻屿教务适配助手</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #dbe3f0;
+      --text: #152033;
+      --muted: #60708a;
+      --primary: #2b72ff;
+      --primary-strong: #1758d8;
+      --success: #137a3f;
+      --error: #c73a32;
+      --warn: #b7791f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      width: 560px;
+      max-height: 760px;
+      overflow-y: auto;
+      font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    .page {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .hero,
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(22, 34, 57, 0.06);
+    }
+
+    .hero {
+      padding: 16px;
+      background: linear-gradient(135deg, #eef4ff 0%, #ffffff 100%);
+    }
+
+    .hero h1 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .hero p {
+      color: var(--muted);
+    }
+
+    .hero .meta {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #edf2ff;
+      color: var(--primary-strong);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .card {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .section-head h2 {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .status {
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: #eef4ff;
+      color: var(--primary-strong);
+      border: 1px solid #d7e4ff;
+      white-space: pre-wrap;
+    }
+
+    .status.success {
+      background: #edf9f1;
+      color: var(--success);
+      border-color: #c9ebd5;
+    }
+
+    .status.error {
+      background: #fff0ef;
+      color: var(--error);
+      border-color: #ffd2ce;
+    }
+
+    .status.warn {
+      background: #fff7ea;
+      color: var(--warn);
+      border-color: #f8deaa;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+
+    input[readonly] {
+      background: #f8fafc;
+      color: #445066;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    textarea.code {
+      min-height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .actions,
+    .inline-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .actions > button,
+    .inline-actions > button {
+      flex: 1 1 0;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+      transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--primary-strong);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    button.secondary {
+      background: #edf2ff;
+      color: var(--primary-strong);
+    }
+
+    button.secondary:hover {
+      background: #dde8ff;
+    }
+
+    button.ghost {
+      background: #f3f5f9;
+      color: var(--text);
+    }
+
+    button.ghost:hover {
+      background: #e8edf5;
+    }
+
+    button.danger {
+      background: #d1433e;
+      color: #fff;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f2f5fb;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .preview,
+    .summary-box {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fbfcff;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .row-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .token-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
 </head>
 <body>
-    <h4>轻屿教务适配测试</h4>
-    <button id="startTestButton">开始测试</button>
-    <div id="statusMessage" class="info"></div>
-    <p style="margin:10px 0 0;color:#666;font-size:12px;text-align:center;">基于上游 shiguang_Tester 维护</p>
-    <script src="popup.js"></script>
+  <div class="page">
+    <section class="hero">
+      <h1>轻屿教务适配助手</h1>
+      <p>同步学校列表、填写适配元数据、生成 AI 指令、回贴脚本、一键测试，并直接提交 GitHub PR。</p>
+      <div class="meta">
+        <span class="chip">Alpha 调试</span>
+        <span class="chip">AI 草稿</span>
+        <span class="chip">PR 提交</span>
+      </div>
+    </section>
+
+    <div id="statusMessage" class="status">准备就绪：先同步学校列表，再选择学校或创建新学校。</div>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>1. 仓库与学校</h2>
+          <p>从在线仓库拉取学校列表，选择已有学校继续适配，或切换到新建学校。</p>
+        </div>
+        <span id="schoolCountBadge" class="badge">未同步</span>
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="repoOwnerInput">仓库所有者</label>
+          <input id="repoOwnerInput" value="Mutx163">
+        </div>
+        <div class="field">
+          <label for="repoNameInput">仓库名</label>
+          <input id="repoNameInput" value="qingyu_warehouse">
+        </div>
+        <div class="field">
+          <label for="repoBranchInput">分支</label>
+          <input id="repoBranchInput" value="main">
+        </div>
+        <div class="field">
+          <label for="schoolSearchInput">搜索学校</label>
+          <input id="schoolSearchInput" placeholder="学校名 / ID / 首字母">
+        </div>
+      </div>
+      <div class="actions">
+        <button id="syncWarehouseButton">同步学校列表</button>
+        <button id="toggleNewSchoolButton" class="secondary">切换：新建学校</button>
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="schoolSelect">已适配学校</label>
+          <select id="schoolSelect"></select>
+        </div>
+        <div class="field">
+          <label for="existingAdapterSelect">该校现有适配器</label>
+          <select id="existingAdapterSelect"></select>
+        </div>
+      </div>
+      <div class="inline-actions">
+        <button id="loadExistingAdapterButton" class="ghost">载入现有适配器脚本</button>
+        <button id="refreshAdaptersButton" class="ghost">刷新该校适配器</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>2. 学校与适配元数据</h2>
+          <p>新建学校时会同时更新 root_index.yaml；已有学校只会更新 adapters.yaml 和脚本文件。</p>
+        </div>
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="schoolIdInput">学校 ID</label>
+          <input id="schoolIdInput" placeholder="例如 CQCST">
+        </div>
+        <div class="field">
+          <label for="schoolNameInput">学校名称</label>
+          <input id="schoolNameInput" placeholder="例如 重庆城市科技学院">
+        </div>
+        <div class="field">
+          <label for="schoolInitialInput">首字母</label>
+          <input id="schoolInitialInput" maxlength="1" placeholder="C">
+        </div>
+        <div class="field">
+          <label for="schoolResourceFolderInput">资源目录</label>
+          <input id="schoolResourceFolderInput" placeholder="例如 CQCST">
+        </div>
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="adapterIdInput">适配器 ID</label>
+          <input id="adapterIdInput" placeholder="例如 CQCST_02">
+        </div>
+        <div class="field">
+          <label for="adapterNameInput">适配器名称</label>
+          <input id="adapterNameInput" placeholder="例如 本科教务入口">
+        </div>
+        <div class="field">
+          <label for="adapterCategorySelect">分类</label>
+          <select id="adapterCategorySelect">
+            <option value="BACHELOR_AND_ASSOCIATE">本科 / 专科</option>
+            <option value="POSTGRADUATE">研究生</option>
+            <option value="GENERAL_TOOL">通用工具</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="assetJsPathInput">脚本相对路径</label>
+          <input id="assetJsPathInput" placeholder="例如 cqcst_02.js">
+        </div>
+        <div class="field">
+          <label for="importUrlInput">登录地址</label>
+          <input id="importUrlInput" placeholder="https://... 或留空">
+        </div>
+        <div class="field">
+          <label for="maintainerInput">维护者</label>
+          <input id="maintainerInput" placeholder="GitHub 用户名或昵称">
+        </div>
+      </div>
+      <div class="field">
+        <label for="descriptionInput">适配描述</label>
+        <textarea id="descriptionInput" placeholder="说明适配用途、限制或登录方式"></textarea>
+      </div>
+      <div id="generatedFilesPreview" class="preview">待提交文件预览会显示在这里。</div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>3. 页面上下文与 AI 指令</h2>
+          <p>抓取当前教务网页上下文，生成一键复制给浏览器 AI / 其他模型的提示词。</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="captureContextButton">抓取当前页面上下文</button>
+        <button id="generatePromptButton" class="secondary">生成适配指令</button>
+        <button id="copyPromptButton" class="ghost">复制指令</button>
+      </div>
+      <div id="pageContextSummary" class="summary-box">还没有抓取页面上下文。</div>
+      <div class="field">
+        <label for="promptTextarea">给 AI 的指令</label>
+        <textarea id="promptTextarea"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>4. 粘贴脚本并测试</h2>
+          <p>把 AI 返回的脚本贴回来，直接在当前教务页面反复测试。</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="pasteScriptButton" class="secondary">从剪贴板粘贴脚本</button>
+        <button id="runTestButton">运行当前脚本</button>
+        <button id="clearScriptButton" class="ghost">清空脚本</button>
+      </div>
+      <div class="field">
+        <label for="scriptTextarea">当前脚本草稿</label>
+        <textarea id="scriptTextarea" class="code" spellcheck="false"></textarea>
+      </div>
+      <div id="testSummary" class="summary-box">还没有测试结果。</div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>5. GitHub 登录与提交 PR</h2>
+          <p>当前版本使用 GitHub Personal Access Token 登录，适合无后端的扩展场景。</p>
+        </div>
+        <span id="githubLoginBadge" class="badge">未登录</span>
+      </div>
+      <div class="field">
+        <label for="githubTokenInput">GitHub Token</label>
+        <input id="githubTokenInput" type="password" placeholder="建议使用 fine-grained PAT：Contents / Pull requests 权限">
+      </div>
+      <div class="inline-actions">
+        <button id="githubLoginButton">验证并保存 Token</button>
+        <button id="openPatGuideButton" class="ghost">打开 PAT 创建页</button>
+      </div>
+      <div class="token-note">建议权限：Contents（读写）、Pull requests（读写）。Token 仅保存在当前浏览器会话中，不会写入本地长期草稿。</div>
+      <div class="field">
+        <label for="prTitleInput">PR 标题</label>
+        <input id="prTitleInput" placeholder="例如 feat: add CQCST adapter draft via extension assistant">
+      </div>
+      <div class="field">
+        <label for="prBodyTextarea">PR 描述</label>
+        <textarea id="prBodyTextarea"></textarea>
+      </div>
+      <div class="actions">
+        <button id="submitPrButton">提交到 fork 并发起 PR</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
 </body>
 </html>

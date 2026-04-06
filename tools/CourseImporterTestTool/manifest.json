@@ -32,7 +32,10 @@
     "scripting",
     "activeTab",
     "notifications",
-    "downloads"
+    "downloads",
+    "storage",
+    "clipboardRead",
+    "clipboardWrite"
   ],
   "web_accessible_resources": [
     {
