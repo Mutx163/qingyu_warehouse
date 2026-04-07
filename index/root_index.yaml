@@ -352,3 +352,7 @@ schools:
     name: "江苏大学"
     initial: "J"
     resource_folder: "UJS"
+  - id: "CQUET"
+    name: "重庆电子科技职业大学"
+    initial: "C"
+    resource_folder: "CQUET"
