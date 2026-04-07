@@ -29,7 +29,8 @@ AndroidBridge.showToast('开始抓取课表');
 
 通知任务完成。
 
-在浏览器扩展里，这会触发导出 `CourseTableExport.json`。
+在浏览器扩展里，这会结束当前测试会话，并把本次运行得到的课程 / 时间模板 / 学期配置整理回扩展内部预览面板。
+注意：这条链路必须从扩展里点击“运行当前脚本”发起；如果你只是直接在 F12 控制台运行脚本，桥接层会判定为无效测试会话。
 
 ```js
 AndroidBridge.notifyTaskCompletion();
@@ -252,4 +253,3 @@ await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify([
 - `resources/GLOBAL_TOOLS/test.js`
 - `tools/CourseImporterTestTool/school.js`
 - 各类现有学校脚本
-

@@ -1,10 +1,27 @@
 const EXPORT_FILENAME = 'CourseTableExport.json';
 const AUTHORIZED_TABS_KEY = 'adapterAssistantAuthorizedTabs';
+const EXPORT_RESULT_KEY = 'adapterAssistantLastExportResult';
 
 let cachedCourses = null;
 let cachedTimeSlots = null;
 let cachedCourseConfig = null;
 let lastExportSummary = null;
+let lastExportResult = null;
+let lastExecutionStatus = null;
+
+initializeSidePanelBehavior();
+
+chrome.runtime.onInstalled.addListener(() => {
+  initializeSidePanelBehavior();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  initializeSidePanelBehavior();
+});
+
+chrome.action.onClicked.addListener(async (tab) => {
+  await openWorkbenchSidePanel(tab);
+});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
@@ -18,6 +35,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'GET_LAST_EXPORT_SUMMARY':
         sendResponse({ success: true, lastExportSummary });
         return;
+      case 'GET_LAST_EXPORT_RESULT':
+        sendResponse(await getLastExportResultResponse());
+        return;
       case 'RUN_SCRIPT_SOURCE_REQUEST':
         sendResponse(await runDynamicScriptSource(message.scriptSource));
         return;
@@ -28,8 +48,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse(await handleInlineDialogResult(message, sender));
         return;
       case 'JS_EXECUTION_STATUS':
+        await updateLastExecutionStatus({
+          success: Boolean(message?.success),
+          message: message?.message || '脚本执行状态已更新。',
+          phase: message?.phase || 'runtime-status',
+          persistOnly: true,
+        });
         if (!message?.forwardedByBackground) {
-          broadcastRuntimeMessage({ ...message, forwardedByBackground: true });
+          broadcastRuntimeMessage({
+            ...message,
+            updatedAt: lastExecutionStatus?.updatedAt,
+            forwardedByBackground: true,
+          });
         }
         sendResponse({ success: true });
         return;
@@ -43,6 +73,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true;
 });
+
+async function initializeSidePanelBehavior() {
+  if (!chrome.sidePanel?.setPanelBehavior) {
+    return;
+  }
+  try {
+    await chrome.sidePanel.setOptions({
+      path: 'popup.html',
+      enabled: true,
+    });
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  } catch (error) {
+    console.warn('[AdapterAssistant] failed to enable side panel action behavior:', error);
+  }
+}
+
+async function openWorkbenchSidePanel(tab) {
+  if (!chrome.sidePanel?.open) {
+    console.warn('[AdapterAssistant] sidePanel API is unavailable in this browser build.');
+    return;
+  }
+  try {
+    if (tab?.windowId) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      return;
+    }
+    const currentWindow = await chrome.windows.getCurrent();
+    if (currentWindow?.id) {
+      await chrome.sidePanel.open({ windowId: currentWindow.id });
+    }
+  } catch (error) {
+    console.warn('[AdapterAssistant] failed to open side panel from action click:', error);
+  }
+}
 
 async function handleBridgeCall(message, sender) {
   const tabId = sender?.tab?.id;
@@ -77,6 +141,15 @@ async function handleBridgeCall(message, sender) {
     case 'showAlert':
     case 'showPrompt':
     case 'showSingleSelection':
+      if (method === 'showAlert') {
+        const title = String(args[0] || '').trim();
+        const content = String(args[1] || '').trim();
+        await updateLastExecutionStatus({
+          success: false,
+          phase: 'script-alert',
+          message: [title, content].filter(Boolean).join('：') || '脚本主动弹出了错误提示。',
+        });
+      }
       if (!tabId) {
         return { success: false, message: '当前标签页不可用，无法显示内联弹窗。' };
       }
@@ -133,9 +206,11 @@ async function handleBridgeCall(message, sender) {
       broadcastRuntimeMessage({
         type: 'JS_EXECUTION_STATUS',
         success: result.success,
+        phase: result.success ? 'completed' : 'complete-with-error',
         message: result.success
-          ? '校内脚本已执行完毕，已生成导出结果。'
-          : `校内脚本执行完毕，但导出失败：${result.message}`,
+          ? lastExecutionStatus?.message || '校内脚本已执行完毕，测试结果已回传到插件内。'
+          : `校内脚本执行完毕，但结果整理失败：${result.message}`,
+        updatedAt: lastExecutionStatus?.updatedAt || new Date().toISOString(),
       });
       return result;
     }
@@ -161,6 +236,12 @@ async function cacheBridgePayload({
     await resolvePromiseInPage(tabId, promiseId, successValue, false);
     return { success: true };
   } catch (error) {
+    await updateLastExecutionStatus({
+      success: false,
+      phase: 'bridge-parse-error',
+      message: `${errorPrefix}: ${error.message}`,
+      persistOnly: true,
+    });
     await resolvePromiseInPage(tabId, promiseId, `${errorPrefix}: ${error.message}`, true);
     return { success: false, message: `${errorPrefix}: ${error.message}` };
   }
@@ -172,22 +253,33 @@ async function handleExportRequest(source) {
     timeSlots: cachedTimeSlots,
     config: cachedCourseConfig,
   };
-  const exportJsonString = JSON.stringify(exportData, null, 2);
-  const dataUrl = `data:application/json;charset=utf-8,${encodeURIComponent(exportJsonString)}`;
-
   try {
-    await chrome.downloads.download({
-      url: dataUrl,
-      filename: EXPORT_FILENAME,
-      saveAs: true,
-    });
-
     const summary = buildExportSummary(exportData, source);
     lastExportSummary = summary;
-    broadcastRuntimeMessage({ type: 'EXPORT_SUMMARY_UPDATED', summary });
+    lastExportResult = {
+      summary,
+      exportData,
+    };
+    await updateLastExecutionStatus({
+      success: true,
+      phase: 'exported',
+      message: `脚本已生成结果：${summary.courseCount} 门课，${summary.timeSlotCount} 个时间段${summary.hasConfig ? '，含学期配置' : ''}。`,
+      persistOnly: true,
+    });
+    broadcastRuntimeMessage({
+      type: 'EXPORT_SUMMARY_UPDATED',
+      summary,
+      exportData,
+      executionStatus: lastExecutionStatus,
+    });
     resetCachedExportData();
-    return { success: true, summary };
+    return { success: true, summary, exportData };
   } catch (error) {
+    await updateLastExecutionStatus({
+      success: false,
+      phase: 'export-failed',
+      message: error?.message || String(error),
+    });
     resetCachedExportData();
     return { success: false, message: error?.message || String(error) };
   }
@@ -205,6 +297,7 @@ function buildExportSummary(exportData, source) {
     hasConfig,
     source,
     updatedAt: new Date().toISOString(),
+    delivery: 'in-app',
   };
 }
 
@@ -221,6 +314,14 @@ async function runDynamicScriptSource(scriptSource) {
   }
 
   resetCachedExportData();
+  lastExportSummary = null;
+  lastExportResult = null;
+  await updateLastExecutionStatus({
+    success: true,
+    phase: 'started',
+    message: '草稿脚本已注入当前页面，等待脚本执行结果...',
+    persistOnly: true,
+  });
   const tab = await getActiveNormalTab();
   await ensureContentScriptReady(tab.id);
   await authorizeTab(tab.id);
@@ -348,6 +449,66 @@ async function ensureContentScriptReady(tabId) {
 function broadcastRuntimeMessage(payload) {
   chrome.runtime.sendMessage(payload).catch(() => {
     // Popup may be closed; ignore.
+  });
+}
+
+async function getLastExportResultResponse() {
+  if (lastExportResult) {
+    return {
+      success: true,
+      lastExportSummary: lastExportResult.summary,
+      lastExportData: lastExportResult.exportData,
+      lastExecutionStatus,
+    };
+  }
+
+  const stored = await chrome.storage.session.get(EXPORT_RESULT_KEY);
+  const saved = stored?.[EXPORT_RESULT_KEY] || null;
+  if (saved) {
+    lastExportResult = saved?.summary || saved?.exportData
+      ? {
+          summary: saved.summary || null,
+          exportData: saved.exportData || null,
+        }
+      : null;
+    lastExecutionStatus = saved.executionStatus || null;
+  }
+
+  return {
+    success: true,
+    lastExportSummary: saved?.summary || null,
+    lastExportData: saved?.exportData || null,
+    lastExecutionStatus: saved?.executionStatus || null,
+  };
+}
+
+async function updateLastExecutionStatus(status) {
+  lastExecutionStatus = {
+    success: Boolean(status?.success),
+    phase: status?.phase || 'runtime-status',
+    message: String(status?.message || '').trim() || '脚本执行状态已更新。',
+    updatedAt: new Date().toISOString(),
+  };
+  await persistLastExportResultState();
+  if (!status?.persistOnly) {
+    broadcastRuntimeMessage({
+      type: 'JS_EXECUTION_STATUS',
+      success: lastExecutionStatus.success,
+      phase: lastExecutionStatus.phase,
+      message: lastExecutionStatus.message,
+      updatedAt: lastExecutionStatus.updatedAt,
+      forwardedByBackground: true,
+    });
+  }
+}
+
+async function persistLastExportResultState() {
+  await chrome.storage.session.set({
+    [EXPORT_RESULT_KEY]: {
+      summary: lastExportSummary,
+      exportData: lastExportResult?.exportData || null,
+      executionStatus: lastExecutionStatus,
+    },
   });
 }
 

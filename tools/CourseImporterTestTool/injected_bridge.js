@@ -56,6 +56,60 @@ function validateCourseData(course) {
     return null;
 }
 
+function normalizeWeekArray(value) {
+    const source = Array.isArray(value) ? value : [];
+    return Array.from(new Set(source
+        .map((item) => Number(item))
+        .filter((item) => Number.isFinite(item) && item > 0)))
+        .sort((a, b) => a - b);
+}
+
+function normalizeCourseData(course) {
+    if (!course || typeof course !== 'object') {
+        return course;
+    }
+
+    const normalized = { ...course };
+    const teacher = normalized.teacher == null ? '' : String(normalized.teacher);
+    const position = normalized.position == null
+        ? (normalized.location == null ? '' : String(normalized.location))
+        : String(normalized.position);
+    const location = normalized.location == null ? position : String(normalized.location);
+
+    const day = normalized.day == null
+        ? (normalized.dayOfWeek == null ? normalized.day : Number(normalized.dayOfWeek))
+        : Number(normalized.day);
+    const dayOfWeek = normalized.dayOfWeek == null
+        ? day
+        : Number(normalized.dayOfWeek);
+
+    const weeks = normalizeWeekArray(
+        normalized.weeks == null ? normalized.customWeeks : normalized.weeks
+    );
+    const customWeeks = normalizeWeekArray(
+        normalized.customWeeks == null ? weeks : normalized.customWeeks
+    );
+
+    normalized.teacher = teacher;
+    normalized.position = position;
+    normalized.location = location;
+    normalized.day = day;
+    normalized.dayOfWeek = dayOfWeek;
+    normalized.weeks = weeks;
+    if (customWeeks.length) {
+        normalized.customWeeks = customWeeks;
+        if (normalized.startWeek == null) normalized.startWeek = customWeeks[0];
+        if (normalized.endWeek == null) normalized.endWeek = customWeeks[customWeeks.length - 1];
+    }
+    if (normalized.note == null) normalized.note = '';
+    if (normalized.courseNature == null) normalized.courseNature = 'required';
+    return normalized;
+}
+
+function normalizeCourseList(courses) {
+    return Array.isArray(courses) ? courses.map((course) => normalizeCourseData(course)) : [];
+}
+
 /**
  * 验证单个时间段数据是否包含所有必需字段。
  * @param {object} timeSlot 待验证的时间段对象
@@ -209,7 +263,7 @@ window.AndroidBridgePromise = {
             pendingPromises.set(promiseId, { resolve, reject });
             console.log('[模拟SaveImportedCourses]:', { jsonString });
             try {
-                const courses = JSON.parse(jsonString);
+                const courses = normalizeCourseList(JSON.parse(jsonString));
                 if (!Array.isArray(courses)) {
                     throw new Error("传入的JSON不是一个课程数组。");
                 }
@@ -219,6 +273,7 @@ window.AndroidBridgePromise = {
                         throw new Error(`课程数据验证失败: ${validationError}`);
                     }
                 }
+                jsonString = JSON.stringify(courses);
             } catch (e) {
                 console.error('[数据验证失败]:', e.message);
                 pendingPromises.delete(promiseId);

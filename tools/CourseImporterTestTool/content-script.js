@@ -43,6 +43,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse(collectPageContext());
       return true;
 
+    case 'GET_FULL_PAGE_SNAPSHOT':
+      sendResponse(collectFullPageSnapshot());
+      return true;
+
     case 'RELOAD_AND_EXECUTE_JS':
       executeFixedJs('school.js');
       sendResponse({ success: true, message: 'school.js 已重新注入页面。' });
@@ -190,6 +194,84 @@ function collectPageContext() {
     resources,
     pageText,
     capturedAt: new Date().toISOString(),
+  };
+}
+
+function collectFullPageSnapshot() {
+  const htmlLimit = 120000;
+  const iframeLimit = 30000;
+  const html = (document.documentElement?.outerHTML || '').slice(0, htmlLimit);
+  const courseLikeTextBlocks = Array.from(document.querySelectorAll('div, td, li, span'))
+    .map((node, index) => ({
+      index,
+      tag: node.tagName?.toLowerCase() || '',
+      className: node.className || '',
+      text: normalizeSpace(node.textContent || ''),
+    }))
+    .filter((item) =>
+      item.text &&
+      item.text.length >= 6 &&
+      item.text.length <= 240 &&
+      (/(?:周|星期)[一二三四五六日天]/.test(item.text) ||
+        /\d+(?:-\d+)?周/.test(item.text) ||
+        /第?\s*\d{1,2}\s*[-~—至]?\s*\d{0,2}\s*节/.test(item.text))
+    )
+    .slice(0, 24);
+  const absolutePositionedNodes = Array.from(document.querySelectorAll('[style*="position:absolute"], [style*="position: absolute"]'))
+    .map((node, index) => ({
+      index,
+      tag: node.tagName?.toLowerCase() || '',
+      className: node.className || '',
+      text: normalizeSpace(node.textContent || '').slice(0, 200),
+    }))
+    .filter((item) => item.text)
+    .slice(0, 24);
+  const scripts = Array.from(document.scripts || [])
+    .slice(0, 12)
+    .map((script, index) => ({
+      index,
+      src: script.src || '',
+      type: script.type || '',
+      inlinePreview: (script.textContent || '').slice(0, 800),
+    }));
+  const sameOriginIframes = Array.from(document.querySelectorAll('iframe'))
+    .slice(0, 6)
+    .map((iframe, index) => {
+      try {
+        const iframeDoc = iframe.contentDocument;
+        return {
+          index,
+          src: iframe.src || '',
+          title: iframe.title || '',
+          html: (iframeDoc?.documentElement?.outerHTML || '').slice(0, iframeLimit),
+          textPreview: normalizeSpace(iframeDoc?.body?.innerText || '').slice(0, 1200),
+          tableCount: iframeDoc?.querySelectorAll('table')?.length || 0,
+          scriptCount: iframeDoc?.scripts?.length || 0,
+          absolutePositionedNodeCount: iframeDoc?.querySelectorAll?.('[style*="position:absolute"], [style*="position: absolute"]')?.length || 0,
+        };
+      } catch (error) {
+        return {
+          index,
+          src: iframe.src || '',
+          title: iframe.title || '',
+          inaccessible: true,
+        };
+      }
+    });
+
+  return {
+    ...collectPageContext(),
+    html,
+    scripts,
+    sameOriginIframes,
+    structureSummary: {
+      tableCount: document.querySelectorAll('table').length,
+      iframeCount: document.querySelectorAll('iframe').length,
+      scriptCount: document.scripts.length,
+      absolutePositionedNodeCount: document.querySelectorAll('[style*="position:absolute"], [style*="position: absolute"]').length,
+      courseLikeTextBlocks,
+      absolutePositionedNodes,
+    },
   };
 }
 

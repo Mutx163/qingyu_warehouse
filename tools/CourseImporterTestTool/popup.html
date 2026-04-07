@@ -7,6 +7,9 @@
   <style>
     :root {
       color-scheme: light;
+      --surface-width: 100vw;
+      --surface-height: 100vh;
+      --surface-min-width: 380px;
       --bg: #f5f7fb;
       --card: #ffffff;
       --line: #dbe3f0;
@@ -17,21 +20,30 @@
       --success: #137a3f;
       --error: #c73a32;
       --warn: #b7791f;
+      --shadow: 0 10px 28px rgba(22, 34, 57, 0.08);
     }
 
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
-      padding: 16px;
-      width: 560px;
-      max-height: 760px;
-      overflow-y: auto;
+      width: var(--surface-width);
+      min-width: 0;
+      max-width: none;
+      height: var(--surface-height);
+      min-height: var(--surface-height);
+      max-height: var(--surface-height);
+      overflow: hidden;
       font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text);
       background: var(--bg);
+    }
+
+    body {
+      min-width: var(--surface-min-width);
     }
 
     h1,
@@ -41,84 +53,181 @@
       margin: 0;
     }
 
-    .page {
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .app-shell {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
     }
 
-    .hero,
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: 0 6px 18px rgba(22, 34, 57, 0.06);
-    }
-
-    .hero {
-      padding: 16px;
-      background: linear-gradient(135deg, #eef4ff 0%, #ffffff 100%);
-    }
-
-    .hero h1 {
-      font-size: 18px;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-
-    .hero p {
-      color: var(--muted);
-    }
-
-    .hero .meta {
-      margin-top: 10px;
+    .topbar {
       display: flex;
+      align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
+      padding: 8px 12px;
+      background: rgba(245, 247, 251, 0.96);
+      border-bottom: 1px solid rgba(219, 227, 240, 0.9);
+      backdrop-filter: blur(10px);
     }
 
-    .chip {
-      padding: 4px 10px;
-      border-radius: 999px;
+    .topbar-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .topbar-copy .eyebrow {
+      display: none;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .topbar-copy h1 {
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .topbar-copy p {
+      margin-top: 1px;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .topbar button,
+    .menu-card,
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .topbar button {
+      padding: 6px 10px;
       background: #edf2ff;
       color: var(--primary-strong);
-      font-size: 12px;
       font-weight: 700;
+      white-space: nowrap;
+      font-size: 11px;
+      border-radius: 10px;
     }
 
-    .card {
-      padding: 14px;
+    .topbar button:hover {
+      background: #dde8ff;
+    }
+
+    .topbar button.active {
+      background: #dfe8ff;
+    }
+
+    .topbar button.pulse {
+      animation: aiPulse 1.5s ease-in-out infinite;
+      box-shadow: 0 0 0 0 rgba(43, 114, 255, 0.32);
+    }
+
+    @keyframes aiPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(43, 114, 255, 0.28);
+      }
+      70% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 8px rgba(43, 114, 255, 0);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(43, 114, 255, 0);
+      }
+    }
+
+    .topbar button[hidden] {
+      display: none;
+    }
+
+    .status-area {
+      padding: 6px 12px 0;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 6px;
     }
 
-    .section-head {
+    .workflow-nav {
+      padding: 6px 12px 0;
+    }
+
+    .workflow-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .workflow-tab {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-    }
-
-    .section-head h2 {
-      font-size: 15px;
-      font-weight: 800;
-    }
-
-    .section-head p {
+      flex-direction: row;
+      gap: 4px;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
       color: var(--muted);
-      font-size: 12px;
-      margin-top: 4px;
+      font-weight: 700;
+      text-align: center;
+      min-height: 32px;
+      font-size: 11px;
+    }
+
+    .workflow-tab:hover {
+      border-color: #c8d8ff;
+      color: var(--primary-strong);
+      background: #f8fbff;
+    }
+
+    .workflow-tab small {
+      font-size: 10px;
+      font-weight: 700;
+      color: inherit;
+    }
+
+    .workflow-tab.active {
+      background: linear-gradient(135deg, #2b72ff 0%, #5b8cff 100%);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(43, 114, 255, 0.22);
     }
 
     .status {
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      font-size: 11px;
       background: #eef4ff;
       color: var(--primary-strong);
       border: 1px solid #d7e4ff;
       white-space: pre-wrap;
+      line-height: 1.3;
     }
 
     .status.success {
@@ -139,6 +248,563 @@
       border-color: #f8deaa;
     }
 
+    .status-strip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .status-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .status-pill {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 2px 8px rgba(22, 34, 57, 0.04);
+      min-width: 138px;
+      max-width: 180px;
+      flex: 0 0 auto;
+    }
+
+    .status-pill span {
+      font-size: 9px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .status-pill strong {
+      font-size: 10px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .content-shell {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      padding: 8px 12px 12px;
+      align-items: stretch;
+      position: relative;
+    }
+
+    .view-viewport {
+      min-height: 0;
+      overflow: hidden;
+      overflow-x: hidden;
+      padding: 0;
+      height: 100%;
+    }
+
+    .view {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 2px;
+    }
+
+    .view.active {
+      display: flex;
+    }
+
+    .view.fill-page > .card {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .view.fill-page > .card > .actions:last-child,
+    .view.fill-page > .card > .inline-actions:last-child {
+      margin-top: auto;
+    }
+
+    .hero,
+    .card,
+    .menu-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 16px;
+      background: linear-gradient(135deg, #eef4ff 0%, #ffffff 100%);
+    }
+
+    .hero h2 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .hero p {
+      color: var(--muted);
+    }
+
+    .hero .meta {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #edf2ff;
+      color: var(--primary-strong);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .card {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .card.tight {
+      gap: 8px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .section-head h2 {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .menu-card {
+      padding: 10px;
+      text-align: left;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+    }
+
+    .menu-card:hover {
+      border-color: #c8d8ff;
+      transform: translateY(-1px);
+    }
+
+    .menu-card strong {
+      font-size: 13px;
+    }
+
+    .menu-card p {
+      color: var(--muted);
+      line-height: 1.3;
+      font-size: 10px;
+    }
+
+    .menu-card .mini {
+      color: var(--primary-strong);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      background: #eef3fb;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .segmented button {
+      background: transparent;
+      color: var(--muted);
+      padding: 7px 12px;
+      flex: 0 0 auto;
+    }
+
+    .segmented button.active {
+      background: #fff;
+      color: var(--primary-strong);
+      box-shadow: 0 2px 8px rgba(22, 34, 57, 0.08);
+    }
+
+    .ai-dock {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      min-height: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ai-dock[hidden] {
+      display: none;
+    }
+
+    .ai-dock > .card {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .summary-box,
+    .preview,
+    .summary-tile {
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fbfcff;
+      font-size: 11px;
+      white-space: pre-wrap;
+    }
+
+    .summary-tile {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      white-space: normal;
+    }
+
+    .summary-tile span {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .summary-tile strong {
+      font-size: 11px;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .ai-stage-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .ai-stage-chip {
+      padding: 6px 8px;
+      border-radius: 12px;
+      background: #f4f7fd;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .ai-stage-chip.done {
+      color: var(--success);
+      background: #edf9f1;
+      border-color: #c9ebd5;
+    }
+
+    .ai-stage-chip.active {
+      color: var(--primary-strong);
+      background: #edf2ff;
+      border-color: #c8d8ff;
+    }
+
+    .stream-box {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fbfcff;
+      overflow: hidden;
+    }
+
+    .stream-box + .stream-box {
+      margin-top: 0;
+    }
+
+    .stream-head {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e7edf6;
+      background: #f6f9ff;
+    }
+
+    .stream-head strong {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .stream-head span {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .stream-log,
+    .stream-preview {
+      margin: 0;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 120px;
+      min-height: 96px;
+      overflow: auto;
+      color: #243247;
+    }
+
+    .stream-preview {
+      background: #fff;
+    }
+
+    .ai-console-page {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 2px 0 0;
+      min-height: 0;
+    }
+
+    .ai-workspace-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .ai-workspace-tab {
+      flex: 1 1 0;
+      background: #f3f5f9;
+      color: var(--text);
+    }
+
+    .ai-workspace-tab.active {
+      background: #edf2ff;
+      color: var(--primary-strong);
+    }
+
+    .ai-workspace-body {
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .ai-workspace-section {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      height: 100%;
+      min-height: 0;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .ai-workspace-section.active {
+      display: flex;
+    }
+
+    .stream-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      min-height: 0;
+      flex: 1;
+    }
+
+    .ai-console-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ai-console-title strong {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .ai-console-title span {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .validation-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .validation-tab {
+      flex: 1 1 0;
+      background: #f3f5f9;
+      color: var(--text);
+    }
+
+    .validation-tab.active {
+      background: #edf2ff;
+      color: var(--primary-strong);
+    }
+
+    .validation-panel[hidden] {
+      display: none;
+    }
+
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .detail-card strong {
+      display: block;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      background: #f6f9ff;
+      border-bottom: 1px solid #e7edf6;
+    }
+
+    .detail-card pre {
+      margin: 0;
+      padding: 12px;
+      max-height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      background: #fff;
+    }
+
+    .mini-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .mini-actions > button {
+      flex: 1 1 140px;
+    }
+
+    button.danger {
+      background: #fff0ef;
+      color: var(--error);
+    }
+
+    button.danger:hover {
+      background: #ffdeda;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 8px;
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .history-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .history-title {
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .history-meta {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .history-actions button {
+      flex: 1 1 120px;
+    }
+
+    .history-empty {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fbfcff;
+    }
+
     .grid {
       display: grid;
       gap: 10px;
@@ -156,7 +822,7 @@
     }
 
     .field label {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--muted);
       font-weight: 700;
     }
@@ -166,11 +832,11 @@
     textarea {
       width: 100%;
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font: inherit;
+      border-radius: 10px;
+      padding: 8px 10px;
       color: var(--text);
       background: #fff;
+      font-size: 12px;
     }
 
     input[readonly] {
@@ -184,7 +850,7 @@
     }
 
     textarea.code {
-      min-height: 220px;
+      min-height: 190px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
       line-height: 1.5;
@@ -193,7 +859,7 @@
     .actions,
     .inline-actions {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
@@ -203,16 +869,13 @@
     }
 
     button {
-      appearance: none;
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 12px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
+      padding: 7px 10px;
       background: var(--primary);
       color: #fff;
-      transition: background-color 0.15s ease, transform 0.15s ease;
+      font-weight: 700;
+      font-size: 11px;
+      border-radius: 10px;
+      line-height: 1.2;
     }
 
     button:hover {
@@ -242,245 +905,760 @@
       background: #e8edf5;
     }
 
-    button.danger {
-      background: #d1433e;
-      color: #fff;
-    }
-
-    .hint {
-      font-size: 12px;
+    .hint,
+    .token-note {
+      font-size: 10px;
       color: var(--muted);
     }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #f2f5fb;
+    .preview-controls {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preview-controls .field {
+      min-width: 120px;
+    }
+
+    .preview-meta {
+      font-size: 10px;
       color: var(--muted);
-      font-size: 12px;
+      font-weight: 600;
     }
 
-    .preview,
-    .summary-box {
-      border: 1px dashed var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
-      background: #fbfcff;
-      font-size: 12px;
-      white-space: pre-wrap;
+    .preview-panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      overflow: auto;
+      min-height: 320px;
+      flex: 1;
     }
 
-    .stack {
+    .preview-placeholder {
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .workbench-page {
+      display: grid;
+      gap: 12px;
+      min-height: 0;
+      flex: 1;
+    }
+
+    .workspace-workbench {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .workspace-columns {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .workspace-intro {
+      gap: 12px;
+    }
+
+    .workspace-meta-card .preview {
+      min-height: 96px;
+    }
+
+    .generate-workbench,
+    .test-workbench {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .generate-methods {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .editor-card,
+    .result-card {
+      min-height: 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
     }
 
-    .row-between {
+    .editor-card .field {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .editor-card textarea.code {
+      height: 100%;
+      min-height: 360px;
+      resize: none;
+    }
+
+    .result-card .validation-panel:not([hidden]) {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .detail-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      min-height: 0;
+    }
+
+    .detail-card {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-card pre {
+      flex: 1;
+      min-height: 180px;
+      max-height: none;
+    }
+
+    .timetable-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .timetable-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .timetable-table th,
+    .timetable-table td {
+      border: 1px solid #e7edf6;
+      vertical-align: top;
+    }
+
+    .timetable-table th {
+      background: #f6f9ff;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 6px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .time-axis {
+      width: 84px;
+      background: #fbfcff;
+      padding: 8px 6px;
+    }
+
+    .time-axis strong,
+    .time-axis span {
+      display: block;
+    }
+
+    .time-axis span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    .timetable-cell {
+      padding: 6px;
+      min-height: 92px;
+      background: #fff;
+    }
+
+    .cell-empty {
+      display: inline-flex;
+      width: 100%;
+      justify-content: center;
+      padding-top: 10px;
+      color: #c0cadb;
+      font-size: 12px;
+    }
+
+    .course-card,
+    .custom-course-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border-radius: 10px;
+      padding: 8px;
+      background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+      border: 1px solid #d7e4ff;
+      margin-bottom: 6px;
+    }
+
+    .course-card.fill-span {
+      justify-content: flex-start;
+      height: 100%;
+    }
+
+    .course-card:last-child,
+    .custom-course-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .course-name {
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .course-meta {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .custom-course-block {
+      border-top: 1px dashed var(--line);
+      padding: 10px 12px 12px;
+      background: #fbfcff;
+    }
+
+    .custom-course-title {
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .custom-course-list {
+      display: grid;
       gap: 8px;
     }
 
-    .token-note {
-      font-size: 12px;
-      color: var(--muted);
+    @media (max-width: 900px) {
+      .grid.two,
+      .summary-grid,
+      .menu-grid,
+      .detail-grid,
+      .generate-methods,
+      .workspace-columns,
+      .stream-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .preview-controls,
+      .section-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        min-width: 0;
+      }
+
+      .topbar {
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+
+      .topbar-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+
+      .workflow-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: visible;
+      }
+
+      .status-pill {
+        min-width: 0;
+      }
+
+      .actions > button,
+      .inline-actions > button {
+        flex: 1 1 100%;
+      }
+
+      .content-shell {
+        padding: 8px 10px 10px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <section class="hero">
-      <h1>轻屿教务适配助手</h1>
-      <p>同步学校列表、填写适配元数据、生成 AI 指令、回贴脚本、一键测试，并直接提交 GitHub PR。</p>
-      <div class="meta">
-        <span class="chip">Alpha 调试</span>
-        <span class="chip">AI 草稿</span>
-        <span class="chip">PR 提交</span>
+  <div class="app-shell">
+    <header class="topbar">
+      <button id="backButton" hidden>返回流程</button>
+      <div class="topbar-copy">
+        <div class="eyebrow">轻屿课表 · 教务适配浏览器拓展</div>
+        <h1 id="topbarTitle">轻屿教务适配助手</h1>
+        <p id="topbarSubtitle">把适配流程拆成任务页，按步骤完成会更轻松。</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="topbarAiConsoleButton">AI 面板</button>
+        <button id="topbarSettingsButton">高级设置</button>
+      </div>
+    </header>
+
+    <section class="status-area">
+      <div id="statusMessage" class="status">准备就绪：先同步学校列表，再选择学校或创建新学校。</div>
+      <div class="status-strip">
+        <div class="status-pill">
+          <span>仓库源</span>
+          <strong id="currentRepoStatus">Mutx163/qingyu_warehouse@main</strong>
+        </div>
+        <div class="status-pill">
+          <span>当前学校</span>
+          <strong id="currentSchoolStatus">未选择学校</strong>
+        </div>
+        <div class="status-pill">
+          <span>适配器</span>
+          <strong id="currentAdapterStatus">未载入适配器</strong>
+        </div>
+        <div class="status-pill">
+          <span>调试 / GitHub</span>
+          <strong id="currentTestStatus">未测试</strong>
+          <strong id="currentGithubStatus">未登录</strong>
+        </div>
       </div>
     </section>
 
-    <div id="statusMessage" class="status">准备就绪：先同步学校列表，再选择学校或创建新学校。</div>
-
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <h2>1. 仓库与学校</h2>
-          <p>从在线仓库拉取学校列表，选择已有学校继续适配，或切换到新建学校。</p>
-        </div>
-        <span id="schoolCountBadge" class="badge">未同步</span>
-      </div>
-      <div class="grid two">
-        <div class="field">
-          <label for="repoOwnerInput">仓库所有者</label>
-          <input id="repoOwnerInput" value="Mutx163">
-        </div>
-        <div class="field">
-          <label for="repoNameInput">仓库名</label>
-          <input id="repoNameInput" value="qingyu_warehouse">
-        </div>
-        <div class="field">
-          <label for="repoBranchInput">分支</label>
-          <input id="repoBranchInput" value="main">
-        </div>
-        <div class="field">
-          <label for="schoolSearchInput">搜索学校</label>
-          <input id="schoolSearchInput" placeholder="学校名 / ID / 首字母">
-        </div>
-      </div>
-      <div class="actions">
-        <button id="syncWarehouseButton">同步学校列表</button>
-        <button id="toggleNewSchoolButton" class="secondary">切换：新建学校</button>
-      </div>
-      <div class="grid two">
-        <div class="field">
-          <label for="schoolSelect">已适配学校</label>
-          <select id="schoolSelect"></select>
-        </div>
-        <div class="field">
-          <label for="existingAdapterSelect">该校现有适配器</label>
-          <select id="existingAdapterSelect"></select>
-        </div>
-      </div>
-      <div class="inline-actions">
-        <button id="loadExistingAdapterButton" class="ghost">载入现有适配器脚本</button>
-        <button id="refreshAdaptersButton" class="ghost">刷新该校适配器</button>
+    <section class="workflow-nav">
+      <div class="workflow-tabs">
+        <button class="workflow-tab" data-nav-view="workspace"><small>1</small>目标</button>
+        <button class="workflow-tab" data-nav-view="generate"><small>2</small>脚本</button>
+        <button class="workflow-tab" data-nav-view="test"><small>3</small>验证</button>
+        <button class="workflow-tab" data-nav-view="publish"><small>4</small>提交</button>
       </div>
     </section>
 
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <h2>2. 学校与适配元数据</h2>
-          <p>新建学校时会同时更新 root_index.yaml；已有学校只会更新 adapters.yaml 和脚本文件。</p>
+    <div id="contentShell" class="content-shell">
+    <section id="aiDock" class="ai-dock" hidden>
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>AI 面板</h2>
+            <p>生成、修正、续写和缓存都集中在这里，不再单独跳到另一页。</p>
+          </div>
         </div>
-      </div>
-      <div class="grid two">
-        <div class="field">
-          <label for="schoolIdInput">学校 ID</label>
-          <input id="schoolIdInput" placeholder="例如 CQCST">
+        <div class="ai-console-page">
+          <div class="ai-console-title">
+            <strong>运行状态</strong>
+            <span>支持首次生成 / 局部修改 / 续写恢复</span>
+          </div>
+          <div class="actions">
+            <button id="continueAiButton" class="secondary" disabled>继续上次 AI 任务</button>
+            <button id="pauseAiButton" class="secondary" disabled>暂停当前任务</button>
+            <button id="cancelAiButton" class="ghost" disabled>取消当前任务</button>
+            <button id="deleteAiTaskButton" class="danger" disabled>删除当前任务</button>
+            <button id="clearAiCacheButton" class="ghost">清空 AI 上下文 / 缓存</button>
+            <button id="clearAiHistoryButton" class="ghost" disabled>清空任务历史</button>
+            <button id="exportAiContextButton" class="secondary">导出上下文包</button>
+            <button id="copyAiContextButton" class="ghost">复制上下文文本</button>
+            <button id="aiOpenTestButton" class="ghost" disabled>跳到验证页</button>
+          </div>
+          <div class="ai-workspace-tabs">
+            <button id="aiOverviewTab" class="ai-workspace-tab active" data-ai-panel-tab="overview">概览</button>
+            <button id="aiOutputTab" class="ai-workspace-tab" data-ai-panel-tab="output">输出</button>
+            <button id="aiHistoryTab" class="ai-workspace-tab" data-ai-panel-tab="history">历史</button>
+          </div>
+          <div class="ai-workspace-body">
+            <section id="aiOverviewPanel" class="ai-workspace-section active" data-ai-panel-content="overview">
+              <div id="aiWorkspaceStatus" class="summary-box">AI 工作区状态会显示在这里。</div>
+              <div class="ai-stage-strip">
+                <div class="ai-stage-chip" data-ai-stage="snapshot">抓取页面</div>
+                <div class="ai-stage-chip" data-ai-stage="request">请求模型</div>
+                <div class="ai-stage-chip" data-ai-stage="streaming">流式输出</div>
+                <div class="ai-stage-chip" data-ai-stage="complete">写入草稿</div>
+              </div>
+              <div class="stream-box">
+                <div class="stream-head">
+                  <strong id="aiRunStage">等待开始</strong>
+                  <span id="aiRunMeta">在“脚本”页点击内置 AI 生成，或在“验证”页点击 AI 修正后，这里会显示当前阶段。</span>
+                </div>
+                <pre id="aiRunLog" class="stream-log">点击“内置 AI 直接生成脚本”后，这里会显示实时进度。</pre>
+              </div>
+            </section>
+
+            <section id="aiOutputPanel" class="ai-workspace-section" data-ai-panel-content="output">
+              <div class="stream-grid">
+                <div class="stream-box">
+                  <div class="stream-head">
+                    <strong id="aiRunStageMirror">实时阶段日志</strong>
+                    <span>适合盯当前请求是否真的在推进。</span>
+                  </div>
+                  <pre id="aiRunLogMirror" class="stream-log">点击“内置 AI 直接生成脚本”后，这里会显示实时进度。</pre>
+                </div>
+                <div class="stream-box">
+                  <div class="stream-head">
+                    <strong>实时输出预览</strong>
+                    <span>模型流式返回的脚本内容会逐步显示在这里。</span>
+                  </div>
+                  <pre id="aiStreamPreview" class="stream-preview">流式输出会显示在这里，方便你确认模型是否真的在工作。</pre>
+                </div>
+              </div>
+            </section>
+
+            <section id="aiHistoryPanel" class="ai-workspace-section" data-ai-panel-content="history">
+              <div class="summary-box">任务历史单独放到这一页，避免和流式输出、状态摘要一起挤在同一屏。</div>
+              <div id="aiHistoryList" class="history-list">
+                <div class="history-empty">还没有 AI 任务历史。</div>
+              </div>
+            </section>
+          </div>
         </div>
-        <div class="field">
-          <label for="schoolNameInput">学校名称</label>
-          <input id="schoolNameInput" placeholder="例如 重庆城市科技学院">
-        </div>
-        <div class="field">
-          <label for="schoolInitialInput">首字母</label>
-          <input id="schoolInitialInput" maxlength="1" placeholder="C">
-        </div>
-        <div class="field">
-          <label for="schoolResourceFolderInput">资源目录</label>
-          <input id="schoolResourceFolderInput" placeholder="例如 CQCST">
-        </div>
-      </div>
-      <div class="grid two">
-        <div class="field">
-          <label for="adapterIdInput">适配器 ID</label>
-          <input id="adapterIdInput" placeholder="例如 CQCST_02">
-        </div>
-        <div class="field">
-          <label for="adapterNameInput">适配器名称</label>
-          <input id="adapterNameInput" placeholder="例如 本科教务入口">
-        </div>
-        <div class="field">
-          <label for="adapterCategorySelect">分类</label>
-          <select id="adapterCategorySelect">
-            <option value="BACHELOR_AND_ASSOCIATE">本科 / 专科</option>
-            <option value="POSTGRADUATE">研究生</option>
-            <option value="GENERAL_TOOL">通用工具</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="assetJsPathInput">脚本相对路径</label>
-          <input id="assetJsPathInput" placeholder="例如 cqcst_02.js">
-        </div>
-        <div class="field">
-          <label for="importUrlInput">登录地址</label>
-          <input id="importUrlInput" placeholder="https://... 或留空">
-        </div>
-        <div class="field">
-          <label for="maintainerInput">维护者</label>
-          <input id="maintainerInput" placeholder="GitHub 用户名或昵称">
-        </div>
-      </div>
-      <div class="field">
-        <label for="descriptionInput">适配描述</label>
-        <textarea id="descriptionInput" placeholder="说明适配用途、限制或登录方式"></textarea>
-      </div>
-      <div id="generatedFilesPreview" class="preview">待提交文件预览会显示在这里。</div>
+      </section>
     </section>
 
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <h2>3. 页面上下文与 AI 指令</h2>
-          <p>抓取当前教务网页上下文，生成一键复制给浏览器 AI / 其他模型的提示词。</p>
-        </div>
-      </div>
-      <div class="actions">
-        <button id="captureContextButton">抓取当前页面上下文</button>
-        <button id="generatePromptButton" class="secondary">生成适配指令</button>
-        <button id="copyPromptButton" class="ghost">复制指令</button>
-      </div>
-      <div id="pageContextSummary" class="summary-box">还没有抓取页面上下文。</div>
-      <div class="field">
-        <label for="promptTextarea">给 AI 的指令</label>
-        <textarea id="promptTextarea"></textarea>
-      </div>
-    </section>
+    <main id="viewViewport" class="view-viewport">
+      <section class="view active" data-view="workspace">
+        <div class="workbench-page workspace-workbench">
+          <section class="card workspace-intro">
+            <div class="section-head">
+              <div>
+                <h2>1. 目标确认</h2>
+                <p>先确定学校来源和适配器对象，再进入脚本阶段。这里不再堆叠大卡片，只保留清晰的两块工作区。</p>
+              </div>
+              <span id="schoolCountBadge" class="badge">未同步</span>
+            </div>
+            <div class="summary-box">当前仓库源：<span id="workspaceRepoSummary">Mutx163/qingyu_warehouse@main</span>。如果你要切到自己的 fork 或其他分支，去右上角“高级设置”里改。</div>
+            <div class="segmented">
+              <button id="useExistingSchoolButton" type="button" class="active">已有学校</button>
+              <button id="useNewSchoolButton" type="button">新建学校</button>
+            </div>
+          </section>
 
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <h2>4. 粘贴脚本并测试</h2>
-          <p>把 AI 返回的脚本贴回来，直接在当前教务页面反复测试。</p>
-        </div>
-      </div>
-      <div class="actions">
-        <button id="pasteScriptButton" class="secondary">从剪贴板粘贴脚本</button>
-        <button id="runTestButton">运行当前脚本</button>
-        <button id="clearScriptButton" class="ghost">清空脚本</button>
-      </div>
-      <div class="field">
-        <label for="scriptTextarea">当前脚本草稿</label>
-        <textarea id="scriptTextarea" class="code" spellcheck="false"></textarea>
-      </div>
-      <div id="testSummary" class="summary-box">还没有测试结果。</div>
-    </section>
+          <div class="workspace-columns">
+            <section id="existingSchoolPickerSection" class="card tight">
+              <div class="section-head">
+                <div>
+                  <h2>已有学校与现有适配器</h2>
+                  <p>先定位目标学校和已有适配器，避免重复造轮子。</p>
+                </div>
+              </div>
+              <div class="actions">
+                <button id="syncWarehouseButton">同步学校列表</button>
+                <button id="refreshAdaptersButton" class="secondary">刷新该校适配器</button>
+                <button id="loadExistingAdapterButton" class="ghost">载入现有适配器脚本</button>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="schoolSearchInput">搜索学校</label>
+                  <input id="schoolSearchInput" placeholder="学校名 / ID / 首字母">
+                </div>
+                <div class="field">
+                  <label for="schoolSelect">已适配学校</label>
+                  <select id="schoolSelect"></select>
+                </div>
+                <div class="field">
+                  <label for="existingAdapterSelect">该校现有适配器</label>
+                  <select id="existingAdapterSelect"></select>
+                </div>
+              </div>
+            </section>
 
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <h2>5. GitHub 登录与提交 PR</h2>
-          <p>当前版本使用 GitHub Personal Access Token 登录，适合无后端的扩展场景。</p>
+            <section class="card tight workspace-meta-card">
+              <div class="section-head">
+                <div>
+                  <h2>学校与适配器元数据</h2>
+                  <p id="schoolMetadataNotice">先选择模式，系统会提示当前学校字段是否可编辑。</p>
+                </div>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="schoolIdInput">学校 ID</label>
+                  <input id="schoolIdInput" placeholder="例如 CQCST">
+                </div>
+                <div class="field">
+                  <label for="schoolNameInput">学校名称</label>
+                  <input id="schoolNameInput" placeholder="例如 重庆城市科技学院">
+                </div>
+                <div class="field">
+                  <label for="schoolInitialInput">首字母</label>
+                  <input id="schoolInitialInput" maxlength="1" placeholder="C">
+                </div>
+                <div class="field">
+                  <label for="schoolResourceFolderInput">资源目录</label>
+                  <input id="schoolResourceFolderInput" placeholder="例如 CQCST">
+                </div>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="adapterIdInput">适配器 ID</label>
+                  <input id="adapterIdInput" placeholder="例如 CQCST_02">
+                </div>
+                <div class="field">
+                  <label for="adapterNameInput">适配器名称</label>
+                  <input id="adapterNameInput" placeholder="例如 本科教务入口">
+                </div>
+                <div class="field">
+                  <label for="adapterCategorySelect">分类</label>
+                  <select id="adapterCategorySelect">
+                    <option value="BACHELOR_AND_ASSOCIATE">本科 / 专科</option>
+                    <option value="POSTGRADUATE">研究生</option>
+                    <option value="GENERAL_TOOL">通用工具</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="assetJsPathInput">脚本相对路径</label>
+                  <input id="assetJsPathInput" placeholder="例如 cqcst_02.js">
+                </div>
+                <div class="field">
+                  <label for="importUrlInput">登录地址</label>
+                  <input id="importUrlInput" placeholder="https://... 或留空">
+                </div>
+                <div class="field">
+                  <label for="maintainerInput">维护者</label>
+                  <input id="maintainerInput" placeholder="GitHub 用户名或昵称">
+                </div>
+              </div>
+              <div class="field">
+                <label for="descriptionInput">适配描述</label>
+                <textarea id="descriptionInput" placeholder="说明适配用途、限制或登录方式"></textarea>
+              </div>
+              <div id="generatedFilesPreview" class="preview">待提交文件预览会显示在这里。</div>
+              <div class="actions">
+                <button data-open-view="generate">继续：进入脚本阶段</button>
+              </div>
+            </section>
+          </div>
         </div>
-        <span id="githubLoginBadge" class="badge">未登录</span>
-      </div>
-      <div class="field">
-        <label for="githubTokenInput">GitHub Token</label>
-        <input id="githubTokenInput" type="password" placeholder="建议使用 fine-grained PAT：Contents / Pull requests 权限">
-      </div>
-      <div class="inline-actions">
-        <button id="githubLoginButton">验证并保存 Token</button>
-        <button id="openPatGuideButton" class="ghost">打开 PAT 创建页</button>
-      </div>
-      <div class="token-note">建议权限：Contents（读写）、Pull requests（读写）。Token 仅保存在当前浏览器会话中，不会写入本地长期草稿。</div>
-      <div class="field">
-        <label for="prTitleInput">PR 标题</label>
-        <input id="prTitleInput" placeholder="例如 feat: add CQCST adapter draft via extension assistant">
-      </div>
-      <div class="field">
-        <label for="prBodyTextarea">PR 描述</label>
-        <textarea id="prBodyTextarea"></textarea>
-      </div>
-      <div class="actions">
-        <button id="submitPrButton">提交到 fork 并发起 PR</button>
-      </div>
-    </section>
+      </section>
+
+      <section class="view" data-view="generate">
+        <div class="workbench-page generate-workbench">
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>2. 脚本工作区</h2>
+              <p>生成方式留在上方，脚本编辑器独立占据主工作区；需要时再切入完整 AI 工作区。</p>
+            </div>
+          </div>
+          <div class="generate-methods">
+          <div class="card tight">
+            <div class="section-head">
+              <div>
+                <h2>方式一：复制外部 AI 指令</h2>
+                <p>适合浏览器自带 AI、ChatGPT 网页版或其他模型平台。</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="copyPromptButton">复制 AI 适配指令</button>
+            </div>
+            <div class="summary-box">打开目标教务网页后，复制整条指令给外部 AI。它会按你当前页面上下文和字段协议生成脚本。</div>
+          </div>
+          <div class="card tight">
+            <div class="section-head">
+              <div>
+                <h2>方式二：内置 AI 直接生成</h2>
+                <p>扩展直接抓取当前页面完整快照并请求你配置的模型。</p>
+              </div>
+            </div>
+            <div id="aiConfigHint" class="summary-box">默认推荐：OpenAI Responses API + gpt-5.4。</div>
+            <div class="actions">
+              <button id="generateWithApiButton">内置 AI 直接生成脚本</button>
+              <button class="secondary" id="openAiDockFromGenerate" data-open-view="generate">打开 AI 工作区</button>
+              <button class="ghost" data-open-view="settings">修改模型 / Base URL</button>
+            </div>
+          </div>
+          </div>
+        </section>
+          <div class="card tight editor-card">
+            <div class="section-head">
+              <div>
+                <h2>脚本草稿</h2>
+                <p>把 AI 返回的脚本留在这里持续编辑；这里应该始终是本页最大的区域。</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="pasteScriptButton" class="secondary">从剪贴板粘贴脚本</button>
+              <button id="downloadScriptButton" class="secondary">导出当前脚本 .js</button>
+              <button id="clearScriptButton" class="ghost">清空脚本</button>
+              <button data-open-view="test">继续：进入验证阶段</button>
+            </div>
+            <div class="field">
+              <label for="scriptTextarea">当前脚本草稿</label>
+              <textarea id="scriptTextarea" class="code" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="test">
+        <div class="workbench-page test-workbench">
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>3. 验证</h2>
+              <p>验证区只做运行、对照和预览；需要修正时再切入完整 AI 工作区。</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="runTestButton">运行当前脚本</button>
+            <button class="secondary" data-open-view="generate">返回脚本页修改</button>
+          </div>
+          <div class="validation-tabs">
+            <button id="validateRunTab" class="validation-tab active" data-validate-panel="run">运行状态</button>
+            <button id="validateResultsTab" class="validation-tab" data-validate-panel="results">提取结果</button>
+            <button id="validatePreviewTab" class="validation-tab" data-validate-panel="preview">课表预览</button>
+          </div>
+        </section>
+
+        <section class="card result-card">
+          <section id="validateRunPanel" class="validation-panel" data-validate-content="run">
+            <div id="testSummary" class="summary-box">还没有测试结果。</div>
+            <div class="field">
+              <label for="aiFeedbackTextarea">反馈给 AI 自动修正</label>
+              <textarea id="aiFeedbackTextarea" placeholder="例如：真实页面里高数在周二 1-2 节，当前提取成了周一；时间模板少了晚自习两节；单双周识别错误。"></textarea>
+            </div>
+            <div class="summary-box">点击下面按钮后，AI 会优先尝试局部修改当前脚本；如果局部改动不稳定，再回退到完整脚本。过程会显示在完整 AI 工作区里。</div>
+            <div class="actions">
+              <button id="retryWithFeedbackButton" class="secondary">让 AI 局部修改当前脚本</button>
+              <button class="ghost" id="openAiDockFromValidate" data-open-view="test">打开 AI 工作区</button>
+            </div>
+          </section>
+
+          <section id="validateResultsPanel" class="validation-panel" data-validate-content="results" hidden>
+            <div class="detail-grid">
+              <div class="detail-card">
+                <strong>提取课程结果</strong>
+                <pre id="coursesListPreview">暂无课程结果。</pre>
+              </div>
+              <div class="detail-card">
+                <strong>时间模板结果</strong>
+                <pre id="timeSlotsPreview">暂无时间模板结果。</pre>
+              </div>
+              <div class="detail-card">
+                <strong>学期配置结果</strong>
+                <pre id="configPreview">暂无学期配置结果。</pre>
+              </div>
+            </div>
+          </section>
+
+          <section id="validatePreviewPanel" class="validation-panel" data-validate-content="preview" hidden>
+            <div class="preview-controls">
+              <div class="field">
+                <label for="previewWeekSelect">预览周次</label>
+                <select id="previewWeekSelect"></select>
+              </div>
+              <div id="previewMeta" class="preview-meta">运行脚本成功后，这里会显示按周查看的课表预览。</div>
+            </div>
+            <div id="previewGrid" class="preview-panel">
+              <div class="preview-placeholder">还没有可预览的课表数据。</div>
+            </div>
+          </section>
+
+          <div class="actions">
+            <button data-open-view="publish">验证通过，继续提交</button>
+          </div>
+        </section>
+        </div>
+      </section>
+
+      <section class="view fill-page" data-view="publish">
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>4. 提交 PR</h2>
+              <p>最后一步再登录 GitHub 和提交 PR，避免太早被仓库操作打断。</p>
+            </div>
+            <span id="githubLoginBadge" class="badge">未登录</span>
+          </div>
+          <div class="field">
+            <label for="githubTokenInput">GitHub Token</label>
+            <input id="githubTokenInput" type="password" placeholder="建议使用 fine-grained PAT：Contents / Pull requests 权限">
+          </div>
+          <div class="inline-actions">
+            <button id="githubLoginButton">一键登录 GitHub</button>
+            <button id="pasteGithubTokenButton" class="secondary">从剪贴板导入</button>
+            <button id="openPatGuideButton" class="ghost">打开 PAT 创建页</button>
+          </div>
+          <div class="token-note">点击“一键登录 GitHub”后会自动尝试：输入框 Token → 剪贴板 Token → 打开 GitHub PAT 页面。建议权限：Contents（读写）、Pull requests（读写）。Token 仅保存在当前浏览器会话中。</div>
+          <div class="field">
+            <label for="prTitleInput">PR 标题</label>
+            <input id="prTitleInput" placeholder="例如 feat: add CQCST adapter draft via extension assistant">
+          </div>
+          <div class="field">
+            <label for="prBodyTextarea">PR 描述</label>
+            <textarea id="prBodyTextarea"></textarea>
+          </div>
+          <div class="actions">
+            <button id="submitPrButton">提交到 fork 并发起 PR</button>
+            <button class="ghost" data-open-view="test">返回验证页</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" data-view="settings">
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>仓库源设置</h2>
+              <p>只有在你要切换 fork、仓库名或分支时，才需要来这里。</p>
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="repoOwnerInput">仓库所有者</label>
+              <input id="repoOwnerInput" value="Mutx163">
+            </div>
+            <div class="field">
+              <label for="repoNameInput">仓库名</label>
+              <input id="repoNameInput" value="qingyu_warehouse">
+            </div>
+            <div class="field">
+              <label for="repoBranchInput">分支</label>
+              <input id="repoBranchInput" value="main">
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>内置 AI 高级配置</h2>
+              <p>AI Key、Base URL、接口类型、模型名称都在这里长期保存。后面可以随时回来修改。</p>
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="aiApiKeyInput">API Key</label>
+              <input id="aiApiKeyInput" type="password" placeholder="sk-...">
+            </div>
+            <div class="field">
+              <label for="aiBaseUrlInput">API Base URL</label>
+              <input id="aiBaseUrlInput" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="field">
+              <label for="aiEndpointTypeSelect">接口类型</label>
+              <select id="aiEndpointTypeSelect">
+                <option value="responses">Responses API</option>
+                <option value="chat_completions">Chat Completions</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="aiModelInput">模型名称</label>
+              <input id="aiModelInput" placeholder="gpt-5.4">
+            </div>
+          </div>
+          <div class="summary-box">AI 设置会保存在本地草稿里，设置一次后下次打开仍然保留；GitHub Token 仍然只保存在当前浏览器会话中。</div>
+          <div class="actions">
+            <button class="secondary" data-open-view="generate">返回脚本页</button>
+            <button class="ghost" data-open-view="workspace">返回目标页</button>
+          </div>
+        </section>
+      </section>
+    </main>
+    </div>
   </div>
 
   <script src="popup.js"></script>

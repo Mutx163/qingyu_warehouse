@@ -49,7 +49,7 @@ resources/GLOBAL_TOOLS/
 
 tools/CourseImporterTestTool/
   manifest.json                    # 浏览器扩展清单
-  school.js                        # Alpha 阶段测试脚本入口
+  school.js                        # Bridge / 数据结构示例脚本
   injected_bridge.js               # 浏览器里模拟 App Bridge
   ...
 
@@ -75,7 +75,9 @@ docs/
 
 - [`tools/CourseImporterTestTool`](./tools/CourseImporterTestTool)
 
-它是一个可加载到 Chrome / Edge 的浏览器扩展。你只需要把自己的适配代码替换它里面的 `school.js`，登录目标教务网页后点击扩展按钮即可测试。
+它是一个可加载到 Chrome / Edge 的浏览器扩展。
+点击扩展图标后，会直接打开浏览器右侧的 **Side Panel 工作台**。
+它现在已经内置了 **目标 / 脚本 / 验证 / 提交** 四步工作流：可以在扩展内生成或粘贴脚本、直接运行当前草稿、在插件内查看课程 / 时间模板 / 课表预览，再决定是否提交到仓库。
 
 ### Beta：再接入仓库和 App 真机验证
 
@@ -92,9 +94,9 @@ docs/
 
 1. 看 [快速开始](./docs/QUICK_START.md)
 2. 安装浏览器扩展测试工具
-3. 在扩展的 `school.js` 里写自己的脚本
-4. 对照 [脚本 API](./docs/SCRIPT_API.md) 输出课程 JSON
-5. 跑通后再把脚本放进 `resources/<folder>/` 并补索引
+3. 在扩展“脚本”页生成 / 粘贴 / 编辑当前草稿
+4. 在“验证”页从扩展内部运行当前脚本，并确认课程 / 时间模板 / 课表预览
+5. 跑通后再把正式脚本放进 `resources/<folder>/` 并补索引
 
 ---
 
@@ -127,4 +129,3 @@ docs/
 - 上游适配仓：<https://github.com/XingHeYuZhuan/shiguang_warehouse>
 - 上游适配教程：<https://github.com/XingHeYuZhuan/shiguangschedule/wiki/%E5%A6%82%E4%BD%95%E9%80%82%E9%85%8D%E6%95%99%E5%8A%A1>
 - 上游测试工具：<https://github.com/XingHeYuZhuan/shiguang_Tester>
-
