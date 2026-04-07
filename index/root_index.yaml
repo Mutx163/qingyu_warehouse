@@ -352,3 +352,8 @@ schools:
     name: "宜宾学院"
     initial: "Y"
     resource_folder: "YIBINU"
+
+  - id: "DLU"
+    name: "大连大学"
+    initial: "D"
+    resource_folder: "DLU"
