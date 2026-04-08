@@ -56,6 +56,7 @@
     if (useOtherTerm === null)
       AndroidBridge.showToast("未选择学期，使用当前学期");
     else if (useOtherTerm === 1) {
+      AndroidBridge.showToast("正在加载学期列表");
       const termListResponse = await fetch(ENDPOINTS.termList()).then((res) =>
         res.json(),
       );
@@ -63,8 +64,8 @@
         "请选择学期",
         JSON.stringify(termListResponse.data.map((term) => term.fullName)),
       );
-      const selectedId = termListResponse.data[index].id;
-      if (selectedId !== null) termId = selectedId;
+      const selectedId = termListResponse.data[index]?.id;
+      if (selectedId) termId = selectedId;
       else AndroidBridge.showToast("未选择学期，使用当前学期");
     }
     const termMetaDataResponse = await fetch(
