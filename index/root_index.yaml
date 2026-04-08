@@ -362,3 +362,8 @@ schools:
     name: "湖北医药学院"
     initial: "H"
     resource_folder: "HBMU"
+
+  - id: "TONGJI"
+    name: "同济大学"
+    initial: "T"
+    resource_folder: "TONGJI"
