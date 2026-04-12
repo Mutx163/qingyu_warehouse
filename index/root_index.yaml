@@ -356,3 +356,28 @@ schools:
     name: "重庆电子科技职业大学"
     initial: "C"
     resource_folder: "CQUET"
+
+  - id: "DLU"
+    name: "大连大学"
+    initial: "D"
+    resource_folder: "DLU"
+
+  - id: "HBMU"
+    name: "湖北医药学院"
+    initial: "H"
+    resource_folder: "HBMU"
+
+  - id: "SDNU"
+    name: "山东师范大学"
+    initial: "S"
+    resource_folder: "SDNU"
+
+  - id: "TONGJI"
+    name: "同济大学"
+    initial: "T"
+    resource_folder: "TONGJI"
+
+  - id: "YIBINU"
+    name: "宜宾学院"
+    initial: "Y"
+    resource_folder: "YIBINU"
