@@ -2,11 +2,14 @@
 
 感谢你为 `qingyu_warehouse` 贡献学校适配或脚本修复。
 
+本仓库为适配资源仓库。浏览器扩展工作台用于 Alpha 阶段调试与验证，正式资源仍通过 `index/` 与 `resources/` 维护。
+
 如果你是第一次参与，请先看：
 
 - [快速开始：10 分钟做出第一个适配](./docs/QUICK_START.md)
 - [脚本 API 与数据结构](./docs/SCRIPT_API.md)
 - [提交前检查清单](./docs/ADAPTER_CHECKLIST.md)
+- [仓库地图](./docs/REPOSITORY_MAP.md)
 
 ---
 
@@ -27,7 +30,7 @@
 
 ### Alpha：浏览器扩展里验证脚本
 
-第一次适配时，**不要一上来先改索引**。
+第一次适配时，**不要一上来先改索引或资源目录**。
 
 推荐先使用仓库内的浏览器扩展测试工具：
 
@@ -40,6 +43,8 @@
 3. 点击扩展按钮执行测试
 4. 在浏览器 F12 控制台看日志和错误
 5. 下载导出的 `CourseTableExport.json` 检查结构
+
+浏览器扩展工作台用于脚本调试、结果验证和提交流程辅助，不替代 `resources/` 正式资源目录。
 
 ### Beta：接入仓库并在 App 内测试
 
@@ -65,6 +70,13 @@ Alpha 跑通后，再做正式接入：
 - `tools/CourseImporterTestTool/*`（如果你在补测试工具能力）
 
 请尽量遵守现有目录和命名方式，避免引入无必要的新层级。
+
+目录职责如下：
+
+- `tools/` 是调试工作台
+- `resources/` 是最终交付物
+- `index/` 是资源入口索引
+- `docs/` 是贡献者文档
 
 ---
 
@@ -109,6 +121,13 @@ Alpha 跑通后，再做正式接入：
 
 仓库内已经提供浏览器扩展测试工具，来源于上游 `shiguang_Tester` 并在下游仓库内保留维护。
 
+当前扩展目录主要承担以下职责：
+
+- 浏览器侧调试
+- Bridge 模拟
+- 结果预览
+- PR 提交辅助
+
 如果你增加了新的桥接方法或需要新的调试能力：
 
 - 请同时考虑更新 `tools/CourseImporterTestTool`
@@ -135,4 +154,3 @@ Alpha 跑通后，再做正式接入：
 
 - [XingHeYuZhuan/shiguang_warehouse](https://github.com/XingHeYuZhuan/shiguang_warehouse)
 - [XingHeYuZhuan/shiguang_Tester](https://github.com/XingHeYuZhuan/shiguang_Tester)
-
