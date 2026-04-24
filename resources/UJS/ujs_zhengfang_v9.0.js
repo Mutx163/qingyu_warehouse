@@ -397,7 +397,7 @@ const BMorningTimeSlots = [
     { number: 1, startTime: "08:00", endTime: "08:45" },
     { number: 2, startTime: "08:55", endTime: "09:40" },
     { number: 3, startTime: "10:10", endTime: "10:55" },
-    { number: 4, startTime: "11:00", endTime: "11:45" },
+    { number: 4, startTime: "11:05", endTime: "11:50" },
 ];
 
 // 三山楼、讲堂群、实践楼
@@ -405,7 +405,7 @@ const CMorningTimeSlots = [
     { number: 1, startTime: "08:00", endTime: "08:45" },
     { number: 2, startTime: "08:55", endTime: "09:40" },
     { number: 3, startTime: "10:20", endTime: "11:05" },
-    { number: 4, startTime: "11:10", endTime: "11:55" },
+    { number: 4, startTime: "11:15", endTime: "12:00" },
 ];
 
 // 夏令时 
@@ -415,7 +415,7 @@ const DSummerAfternoonTimeSlots = [
     { number: 5, startTime: "14:00", endTime: "14:45" },
     { number: 6, startTime: "14:55", endTime: "15:40" },
     { number: 7, startTime: "15:50", endTime: "16:35" },
-    { number: 8, startTime: "16:40", endTime: "17:25" },
+    { number: 8, startTime: "16:45", endTime: "17:30" },
 ];
 
 // 本部
