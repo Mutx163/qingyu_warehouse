@@ -80,6 +80,12 @@ const DEFAULT_STATE = {
   aiDockOpen: false,
   aiPanelTab: 'overview',
   validatePanel: 'run',
+  stepCompleted: {
+    workspace: false,
+    generate: false,
+    test: false,
+    publish: false,
+  },
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -416,7 +422,7 @@ function bindEvents() {
     element.addEventListener('click', () => {
       const view = element.dataset.navView;
       if (view) {
-        setActiveView(view);
+        setActiveView(view, { force: true });
       }
     });
   });
@@ -424,6 +430,13 @@ function bindEvents() {
     element.addEventListener('click', () => {
       const view = element.dataset.openView;
       if (view) {
+        if (STEP_ORDER.includes(state.activeView) && STEP_ORDER.includes(view)) {
+          const currentIdx = STEP_ORDER.indexOf(state.activeView);
+          const targetIdx = STEP_ORDER.indexOf(view);
+          if (targetIdx > currentIdx) {
+            markStepCompleted(state.activeView);
+          }
+        }
         setActiveView(view);
       }
     });
@@ -518,7 +531,7 @@ function bindEvents() {
     chrome.tabs.create({ url: 'https://github.com/settings/personal-access-tokens/new' });
   });
   dom.submitPrButton.addEventListener('click', submitPullRequest);
-  dom.aiOpenTestButton.addEventListener('click', () => setActiveView('test'));
+  dom.aiOpenTestButton.addEventListener('click', () => setActiveView('test', { force: true }));
   dom.retryWithFeedbackButton.addEventListener('click', retryGenerationWithFeedback);
   dom.openAiDockFromValidate?.addEventListener('click', () => {
     state.aiDockOpen = true;
@@ -811,8 +824,11 @@ function renderNavigation() {
   });
 
   document.querySelectorAll('[data-nav-view]').forEach((element) => {
-    const isActive = element.dataset.navView === state.activeView;
+    const stepView = element.dataset.navView;
+    const isActive = stepView === state.activeView;
+    const completed = state.stepCompleted[stepView];
     element.classList.toggle('active', isActive);
+    element.classList.toggle('completed', completed);
     element.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
   const isRunning = ['snapshot', 'request', 'streaming'].includes(aiRunState.stage);
@@ -1166,12 +1182,42 @@ function renderDerivedViews() {
   renderOverview();
 }
 
-function setActiveView(view, { persist = true } = {}) {
-  state.activeView = isValidView(view) ? view : 'workspace';
+const STEP_ORDER = ['workspace', 'generate', 'test', 'publish'];
+
+function canNavigateToView(view) {
+  const idx = STEP_ORDER.indexOf(view);
+  if (idx <= 0) return true;
+  for (let i = 0; i < idx; i++) {
+    if (!state.stepCompleted[STEP_ORDER[i]]) {
+      return STEP_ORDER[i];
+    }
+  }
+  return true;
+}
+
+function setActiveView(view, { persist = true, force = false } = {}) {
+  const target = isValidView(view) ? view : 'workspace';
+  if (!force && STEP_ORDER.includes(target)) {
+    const blocker = canNavigateToView(target);
+    if (blocker !== true) {
+      const blockerMeta = VIEW_META[blocker];
+      showStatus(`请先完成「${blockerMeta?.title || blocker}」步骤，再进入下一步。`, 'warn');
+      return;
+    }
+  }
+  state.activeView = target;
   renderNavigation();
   document.getElementById('viewViewport')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   if (persist) {
     schedulePersist();
+  }
+}
+
+function markStepCompleted(step) {
+  if (state.stepCompleted[step] !== true) {
+    state.stepCompleted[step] = true;
+    schedulePersist();
+    renderNavigation();
   }
 }
 
@@ -1545,7 +1591,7 @@ async function generateScriptWithBuiltInAi() {
     schedulePersist();
     renderAiRunState();
     showStatus('内置 AI 已生成脚本，准备自动返回验证页并运行脚本。', 'success');
-    await autoReturnAndRunCurrentScript('AI 生成完成');
+    await autoReturnToTestView('AI 生成完成');
   } catch (error) {
     if (handleAiTaskInterrupt(error)) {
       return;
@@ -1629,7 +1675,7 @@ async function retryGenerationWithFeedback() {
     schedulePersist();
     renderAiRunState();
     showStatus('AI 已修正脚本，准备自动返回验证页并重新运行。', 'success');
-    await autoReturnAndRunCurrentScript('AI 修正完成');
+    await autoReturnToTestView('AI 修正完成');
   } catch (error) {
     if (handleAiTaskInterrupt(error)) {
       return;
@@ -1931,7 +1977,7 @@ async function continueLastAiTask() {
   try {
     const controller = beginAiTaskRequest();
     state.aiDockOpen = true;
-    setActiveView(resumable.taskType === 'repair' ? 'test' : 'generate');
+    setActiveView(resumable.taskType === 'repair' ? 'test' : 'generate', { force: true });
     resetAiRunState();
     setAiRunStage('request', '正在续写上次 AI 任务…');
     pushAiRunLog('已读取上次中断任务的缓存上下文');
@@ -1977,7 +2023,7 @@ async function continueLastAiTask() {
     pushAiRunLog(`已完成续写（${resolved.mode === 'apply_edits' ? '局部修改' : '整段输出'}）`);
     schedulePersist();
     showStatus('已续写完成，准备自动返回验证页并运行脚本。', 'success');
-    await autoReturnAndRunCurrentScript('AI 续写完成');
+    await autoReturnToTestView('AI 续写完成');
   } catch (error) {
     if (handleAiTaskInterrupt(error)) {
       return;
@@ -1992,14 +2038,13 @@ async function continueLastAiTask() {
   }
 }
 
-async function autoReturnAndRunCurrentScript(reason) {
+async function autoReturnToTestView(reason) {
   state.aiDockOpen = false;
-  setActiveView('test');
+  setActiveView('test', { force: true });
   schedulePersist();
   renderNavigation();
   await wait(80);
-  showStatus(`${reason}，正在自动返回验证页并运行脚本...`, 'success');
-  await runCurrentScript();
+  showStatus(`${reason}，脚本已写入草稿区。请检查后点击「运行当前脚本」进行验证。`, 'success');
 }
 
 function buildBuiltInAiPrompt(snapshot) {
@@ -2839,6 +2884,7 @@ async function submitPullRequest() {
     });
 
     showStatus(`PR 已创建：${pr.html_url}`, 'success');
+    markStepCompleted('publish');
     chrome.tabs.create({ url: pr.html_url });
   } catch (error) {
     showStatus(`提交 PR 失败：${formatError(error)}`, 'error');
