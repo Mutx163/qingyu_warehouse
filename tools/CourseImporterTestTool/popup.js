@@ -78,6 +78,7 @@ const DEFAULT_STATE = {
     body: '',
   },
   aiDockOpen: false,
+  settingsOpen: false,
   aiPanelTab: 'overview',
   validatePanel: 'run',
   stepCompleted: {
@@ -328,6 +329,10 @@ function bindDom() {
     'workspaceRepoSummary',
     'schoolCountBadge',
     'aiDock',
+    'aiDockCloseButton',
+    'settingsOverlay',
+    'settingsOverlayClose',
+    'openSettingsFromGenerate',
     'useExistingSchoolButton',
     'useNewSchoolButton',
     'existingSchoolPickerSection',
@@ -406,17 +411,29 @@ function bindEvents() {
     setActiveView('workspace');
   });
   dom.topbarAiConsoleButton.addEventListener('click', () => {
-    if (!canShowAiDockForView(state.activeView)) {
-      state.aiDockOpen = true;
-      setActiveView('generate');
-      return;
-    }
     state.aiDockOpen = !state.aiDockOpen;
     renderNavigation();
     schedulePersist();
   });
   dom.topbarSettingsButton.addEventListener('click', () => {
-    setActiveView(state.activeView === 'settings' ? 'workspace' : 'settings');
+    state.settingsOpen = !state.settingsOpen;
+    renderNavigation();
+    schedulePersist();
+  });
+  dom.aiDockCloseButton?.addEventListener('click', () => {
+    state.aiDockOpen = false;
+    renderNavigation();
+    schedulePersist();
+  });
+  dom.settingsOverlayClose?.addEventListener('click', () => {
+    state.settingsOpen = false;
+    renderNavigation();
+    schedulePersist();
+  });
+  dom.openSettingsFromGenerate?.addEventListener('click', () => {
+    state.settingsOpen = true;
+    renderNavigation();
+    schedulePersist();
   });
   document.querySelectorAll('[data-nav-view]').forEach((element) => {
     element.addEventListener('click', () => {
@@ -804,18 +821,11 @@ function renderOverview() {
 
 function renderNavigation() {
   const baseMeta = VIEW_META[state.activeView] || VIEW_META.workspace;
-  const showAiDock = state.aiDockOpen && canShowAiDockForView(state.activeView);
-  const meta = showAiDock
-    ? {
-        title: 'AI 面板',
-        subtitle: '这里是完整 AI 工作区，不再和主页面共用垂直空间。',
-      }
-    : baseMeta;
-  dom.topbarTitle.textContent = meta.title;
-  dom.topbarSubtitle.textContent = meta.subtitle;
-  dom.backButton.hidden = !showAiDock;
-  dom.topbarSettingsButton.textContent = state.activeView === 'settings' ? '回到流程' : '高级设置';
-  dom.topbarAiConsoleButton.textContent = showAiDock ? '返回工作台' : 'AI 面板';
+  dom.topbarTitle.textContent = baseMeta.title;
+  dom.topbarSubtitle.textContent = baseMeta.subtitle;
+  dom.backButton.hidden = true;
+  dom.topbarSettingsButton.textContent = '高级设置';
+  dom.topbarAiConsoleButton.textContent = 'AI 面板';
 
   document.querySelectorAll('.view').forEach((element) => {
     const isActive = element.dataset.view === state.activeView;
@@ -831,13 +841,14 @@ function renderNavigation() {
     element.classList.toggle('completed', completed);
     element.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
+
   const isRunning = ['snapshot', 'request', 'streaming'].includes(aiRunState.stage);
   dom.topbarAiConsoleButton.classList.toggle('pulse', isRunning);
-  dom.topbarAiConsoleButton.classList.toggle('active', showAiDock);
-  dom.aiDock.hidden = !showAiDock;
-  if (dom.viewViewport) {
-    dom.viewViewport.hidden = showAiDock;
-  }
+  dom.topbarAiConsoleButton.classList.toggle('active', state.aiDockOpen);
+  dom.topbarSettingsButton.classList.toggle('active', state.settingsOpen);
+
+  dom.aiDock.classList.toggle('open', state.aiDockOpen);
+  dom.settingsOverlay.classList.toggle('open', state.settingsOpen);
 }
 
 function renderAiHint() {
@@ -1262,10 +1273,6 @@ function setSchoolMode(createNewSchool) {
   schedulePersist();
 }
 
-function canShowAiDockForView(view) {
-  return ['generate', 'test'].includes(view);
-}
-
 function renderValidationPanels() {
   const activePanel = ['run', 'results', 'preview'].includes(state.validatePanel)
     ? state.validatePanel
@@ -1534,7 +1541,9 @@ async function generateScriptWithBuiltInAi() {
   const apiKey = state.ai.apiKey.trim();
   if (!apiKey) {
     showStatus('请先填写内置 AI 的 API Key。', 'warn');
-    setActiveView('settings');
+    state.settingsOpen = true;
+    renderNavigation();
+    schedulePersist();
     return;
   }
 
@@ -1612,7 +1621,9 @@ async function retryGenerationWithFeedback() {
   const apiKey = state.ai.apiKey.trim();
   if (!apiKey) {
     showStatus('请先在设置页填写 AI Key。', 'warn');
-    setActiveView('settings');
+    state.settingsOpen = true;
+    renderNavigation();
+    schedulePersist();
     return;
   }
   if (!state.scriptSource.trim()) {

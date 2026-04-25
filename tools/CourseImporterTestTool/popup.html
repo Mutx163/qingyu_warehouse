@@ -292,20 +292,79 @@
     .content-shell {
       flex: 1;
       min-height: 0;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 12px;
+      display: flex;
+      flex-direction: column;
       padding: 8px 12px 12px;
-      align-items: stretch;
       position: relative;
+      overflow: hidden;
+    }
+
+    .overlay-panel {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      display: none !important;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .overlay-panel.open {
+      display: flex !important;
+    }
+
+    .overlay-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      flex-shrink: 0;
+      border-radius: 14px 14px 0 0;
+    }
+
+    .overlay-header h2 {
+      font-size: 13px;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .overlay-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .overlay-close {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 8px;
+      background: #f3f5f9;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .overlay-close:hover {
+      background: #e8edf5;
+      color: var(--text);
     }
 
     .view-viewport {
+      flex: 1;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
-      overflow-x: hidden;
       padding: 0;
-      height: 100%;
     }
 
     .view {
@@ -313,7 +372,7 @@
       flex-direction: column;
       gap: 12px;
       min-height: 0;
-      height: 100%;
+      flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       padding-right: 2px;
@@ -476,19 +535,23 @@
     }
 
     .ai-dock {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: #fff;
-      box-shadow: var(--shadow);
       overflow: hidden;
-      min-height: 0;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
     }
 
-    .ai-dock[hidden] {
-      display: none;
+    .ai-dock .overlay-body {
+      gap: 8px;
+    }
+
+    .ai-dock .ai-console-page {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ai-dock .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
     .ai-dock > .card {
@@ -945,17 +1008,15 @@
     .workbench-page {
       display: grid;
       gap: 12px;
-      min-height: 0;
-      flex: 1;
     }
 
     .workspace-workbench {
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: auto auto;
     }
 
     .workspace-columns {
       display: grid;
-      grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 12px;
       align-items: start;
     }
@@ -970,7 +1031,7 @@
 
     .generate-workbench,
     .test-workbench {
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: auto auto;
     }
 
     .generate-methods {
@@ -1231,12 +1292,16 @@
     </section>
 
     <div id="contentShell" class="content-shell">
-    <section id="aiDock" class="ai-dock" hidden>
-      <section class="card">
+    <section id="aiDock" class="overlay-panel ai-dock">
+      <div class="overlay-header">
+        <h2>AI 面板</h2>
+        <button id="aiDockCloseButton" class="overlay-close">✕ 关闭</button>
+      </div>
+      <div class="overlay-body">
         <div class="section-head">
           <div>
-            <h2>AI 面板</h2>
-            <p>生成、修正、续写和缓存都集中在这里，不再单独跳到另一页。</p>
+            <h2>AI 工作区</h2>
+            <p>生成、修正、续写和缓存都集中在这里。</p>
           </div>
         </div>
         <div class="ai-console-page">
@@ -1305,7 +1370,69 @@
             </section>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+
+    <section id="settingsOverlay" class="overlay-panel">
+      <div class="overlay-header">
+        <h2>高级设置</h2>
+        <button id="settingsOverlayClose" class="overlay-close">✕ 关闭</button>
+      </div>
+      <div class="overlay-body" id="settingsOverlayBody">
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>仓库源设置</h2>
+              <p>只有在你要切换 fork、仓库名或分支时，才需要来这里。</p>
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="repoOwnerInput">仓库所有者</label>
+              <input id="repoOwnerInput" value="Mutx163">
+            </div>
+            <div class="field">
+              <label for="repoNameInput">仓库名</label>
+              <input id="repoNameInput" value="qingyu_warehouse">
+            </div>
+            <div class="field">
+              <label for="repoBranchInput">分支</label>
+              <input id="repoBranchInput" value="main">
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>内置 AI 高级配置</h2>
+              <p>AI Key、Base URL、接口类型、模型名称都在这里长期保存。后面可以随时回来修改。</p>
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="aiApiKeyInput">API Key</label>
+              <input id="aiApiKeyInput" type="password" placeholder="sk-...">
+            </div>
+            <div class="field">
+              <label for="aiBaseUrlInput">API Base URL</label>
+              <input id="aiBaseUrlInput" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="field">
+              <label for="aiEndpointTypeSelect">接口类型</label>
+              <select id="aiEndpointTypeSelect">
+                <option value="responses">Responses API</option>
+                <option value="chat_completions">Chat Completions</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="aiModelInput">模型名称</label>
+              <input id="aiModelInput" placeholder="gpt-5.4">
+            </div>
+          </div>
+          <div class="summary-box">AI 设置会保存在本地草稿里，设置一次后下次打开仍然保留；GitHub Token 仍然只保存在当前浏览器会话中。</div>
+        </section>
+      </div>
     </section>
 
     <main id="viewViewport" class="view-viewport">
@@ -1456,7 +1583,7 @@
             <div class="actions">
               <button id="generateWithApiButton">内置 AI 直接生成脚本</button>
               <button class="secondary" id="openAiDockFromGenerate">打开 AI 工作区</button>
-              <button class="ghost" data-open-view="settings">修改模型 / Base URL</button>
+              <button class="ghost" id="openSettingsFromGenerate">修改模型 / Base URL</button>
             </div>
           </div>
           </div>
@@ -1587,65 +1714,6 @@
         </section>
       </section>
 
-      <section class="view" data-view="settings">
-        <section class="card">
-          <div class="section-head">
-            <div>
-              <h2>仓库源设置</h2>
-              <p>只有在你要切换 fork、仓库名或分支时，才需要来这里。</p>
-            </div>
-          </div>
-          <div class="grid two">
-            <div class="field">
-              <label for="repoOwnerInput">仓库所有者</label>
-              <input id="repoOwnerInput" value="Mutx163">
-            </div>
-            <div class="field">
-              <label for="repoNameInput">仓库名</label>
-              <input id="repoNameInput" value="qingyu_warehouse">
-            </div>
-            <div class="field">
-              <label for="repoBranchInput">分支</label>
-              <input id="repoBranchInput" value="main">
-            </div>
-          </div>
-        </section>
-
-        <section class="card">
-          <div class="section-head">
-            <div>
-              <h2>内置 AI 高级配置</h2>
-              <p>AI Key、Base URL、接口类型、模型名称都在这里长期保存。后面可以随时回来修改。</p>
-            </div>
-          </div>
-          <div class="grid two">
-            <div class="field">
-              <label for="aiApiKeyInput">API Key</label>
-              <input id="aiApiKeyInput" type="password" placeholder="sk-...">
-            </div>
-            <div class="field">
-              <label for="aiBaseUrlInput">API Base URL</label>
-              <input id="aiBaseUrlInput" placeholder="https://api.openai.com/v1">
-            </div>
-            <div class="field">
-              <label for="aiEndpointTypeSelect">接口类型</label>
-              <select id="aiEndpointTypeSelect">
-                <option value="responses">Responses API</option>
-                <option value="chat_completions">Chat Completions</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="aiModelInput">模型名称</label>
-              <input id="aiModelInput" placeholder="gpt-5.4">
-            </div>
-          </div>
-          <div class="summary-box">AI 设置会保存在本地草稿里，设置一次后下次打开仍然保留；GitHub Token 仍然只保存在当前浏览器会话中。</div>
-          <div class="actions">
-            <button class="secondary" data-open-view="generate">返回脚本页</button>
-            <button class="ghost" data-open-view="workspace">返回目标页</button>
-          </div>
-        </section>
-      </section>
     </main>
     </div>
   </div>
