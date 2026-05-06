@@ -71,20 +71,31 @@ function parseShzqCourseData(rawData) {
                 const rawWeeks = courseItem.zcd;
                 const weeks = [];
                 if (rawWeeks) {
-                    const weekMatchRange = rawWeeks.match(/(\d+)-(\d+)周/);
-                    const weekMatchSingle = rawWeeks.match(/\d+/g);
-                    if (weekMatchRange) {
-                        const startWeek = parseInt(weekMatchRange[1], 10);
-                        const endWeek = parseInt(weekMatchRange[2], 10);
-                        for (let i = startWeek; i <= endWeek; i++) {
-                            if (rawWeeks.includes("(单)") && i % 2 === 0) continue;
-                            if (rawWeeks.includes("(双)") && i % 2 !== 0) continue;
-                            weeks.push(i);
+                    const segments = rawWeeks.split(/[,，;；]/);
+                    
+                    segments.forEach(seg => {
+                        const rangeMatch = seg.match(/(\d+)-(\d+)/);
+                        if (rangeMatch) {
+                            const startWeek = parseInt(rangeMatch[1], 10);
+                            const endWeek = parseInt(rangeMatch[2], 10);
+                            for (let i = startWeek; i <= endWeek; i++) {
+                                if (seg.includes("(单)") && i % 2 === 0) continue;
+                                if (seg.includes("(双)") && i % 2 !== 0) continue;
+                                if (!weeks.includes(i)) weeks.push(i);
+                            }
+                        } else {
+                            const singleMatches = seg.match(/\d+/g);
+                            if (singleMatches) {
+                                singleMatches.forEach(numStr => {
+                                    const w = parseInt(numStr, 10);
+                                    if (!weeks.includes(w)) weeks.push(w);
+                                });
+                            }
                         }
-                    } else if (weekMatchSingle) {
-                        weekMatchSingle.forEach(w => weeks.push(parseInt(w, 10)));
-                    }
+                    });
                 }
+                // 周次排序
+                weeks.sort((a, b) => a - b);
                 importedCourses.push({
                     name: name, teacher: teacher, position: position, day: day,
                     startSection: startLesson, endSection: endLesson, weeks: weeks
