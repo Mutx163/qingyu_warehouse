@@ -271,7 +271,7 @@ function extractCoursesFromTable() {
             return null;
         }
 
-        const rows = table.querySelectorAll('tr');
+        const rows = Array.from(table.rows);
         if (rows.length < 2) {
             console.error('[ERROR] 表格行数不足');
             return null;
@@ -280,20 +280,21 @@ function extractCoursesFromTable() {
         console.log(`[INFO] 开始解析课程表（共 ${rows.length} 行）`);
 
         const headerRow = rows[0];
-        const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+        const headers = Array.from(headerRow.cells).map(cell => cell.textContent.trim());
         const dayColumns = headers.slice(2);
+        const pendingRowspans = new Array(dayColumns.length).fill(0);
         
         console.log(`[INFO] 日期列: ${dayColumns.join(', ')}`);
         
         // 遍历数据行
         for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
             const row = rows[rowIndex];
-            const cells = Array.from(row.querySelectorAll('td'));
+            const cells = Array.from(row.cells);
             
             if (cells.length === 0) continue;
             
             // 检查"未安排时间课程"部分
-            const captionCell = row.querySelector('[colspan="9"]');
+            const captionCell = cells.find(cell => cell.querySelector('table.NoFitCourse'));
             if (captionCell) {
                 console.log('[INFO] 检测到未安排课程表');
                 const unscheduledCourses = extractUnscheduledCourses(captionCell);
@@ -314,13 +315,20 @@ function extractCoursesFromTable() {
                 }
             }
             
-            // 遍历每天的课程
+            const dayCells = cells.slice(2);
+            let dayCellPointer = 0;
+
+            // 遍历每天的课程，跳过被上方 rowspan 占用的列
             for (let dayIndex = 0; dayIndex < dayColumns.length; dayIndex++) {
-                const cellIndex = dayIndex + 2;
-                if (cellIndex >= cells.length) continue;
-                
-                const courseCell = cells[cellIndex];
+                if (pendingRowspans[dayIndex] > 0) {
+                    pendingRowspans[dayIndex]--;
+                    continue;
+                }
+
+                const courseCell = dayCells[dayCellPointer];
                 if (!courseCell) continue;
+
+                dayCellPointer++;
                 
                 const cellCourses = extractCoursesFromCell(courseCell, dayIndex);
                 
@@ -340,6 +348,22 @@ function extractCoursesFromTable() {
                         courseMap.set(courseKey, courseInfo);
                     }
                 });
+
+                const rowspan = Math.max(parseInt(courseCell.getAttribute('rowspan') || '1', 10), 1);
+                const colspan = Math.max(parseInt(courseCell.getAttribute('colspan') || '1', 10), 1);
+
+                if (rowspan > 1) {
+                    for (let offset = 0; offset < colspan && dayIndex + offset < dayColumns.length; offset++) {
+                        pendingRowspans[dayIndex + offset] = Math.max(
+                            pendingRowspans[dayIndex + offset],
+                            rowspan - 1
+                        );
+                    }
+                }
+
+                if (colspan > 1) {
+                    dayIndex += colspan - 1;
+                }
             }
         }
         

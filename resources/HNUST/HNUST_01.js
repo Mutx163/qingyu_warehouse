@@ -94,23 +94,57 @@ function extractCoursesFromDoc(doc) {
     return parsedCourses;
 }
 
+// ======== 替换原有的 getPresetTimeSlots，引入双套作息时间 ========
+
+// 非夏季（秋冬春）作息（保持 HNUST 原有数据）
+const Non_summerTimeSlots = [
+    { "number": 1, "startTime": "08:00", "endTime": "08:45" },
+    { "number": 2, "startTime": "08:55", "endTime": "09:40" },
+    { "number": 3, "startTime": "10:00", "endTime": "10:45" },
+    { "number": 4, "startTime": "10:55", "endTime": "11:40" },
+    { "number": 5, "startTime": "14:00", "endTime": "14:45" },
+    { "number": 6, "startTime": "14:55", "endTime": "15:40" },
+    { "number": 7, "startTime": "16:00", "endTime": "16:45" },
+    { "number": 8, "startTime": "16:55", "endTime": "17:40" },
+    { "number": 9, "startTime": "19:00", "endTime": "19:45" },
+    { "number": 10,"startTime": "19:55", "endTime": "20:40" }
+];
+
+// 夏季作息（注：此处假设下午推迟半小时，请根据 HNUST 实际情况微调时间）
+const SummerTimeSlots = [
+    { "number": 1, "startTime": "08:00", "endTime": "08:45" },
+    { "number": 2, "startTime": "08:55", "endTime": "09:40" },
+    { "number": 3, "startTime": "10:00", "endTime": "10:45" },
+    { "number": 4, "startTime": "10:55", "endTime": "11:40" },
+    { "number": 5, "startTime": "14:30", "endTime": "15:15" },
+    { "number": 6, "startTime": "15:25", "endTime": "16:10" },
+    { "number": 7, "startTime": "16:30", "endTime": "17:15" },
+    { "number": 8, "startTime": "17:25", "endTime": "18:10" },
+    { "number": 9, "startTime": "19:30", "endTime": "20:15" },
+    { "number": 10,"startTime": "20:25", "endTime": "21:10" }
+];
+
 /**
- * 生成作息时间段
+ * 弹出选择作息时间
  */
-function getPresetTimeSlots() {
-    return [
-        { "number": 1, "startTime": "08:00", "endTime": "08:45" },
-        { "number": 2, "startTime": "08:55", "endTime": "09:40" },
-        { "number": 3, "startTime": "10:00", "endTime": "10:45" },
-        { "number": 4, "startTime": "10:55", "endTime": "11:40" },
-        { "number": 5, "startTime": "14:00", "endTime": "14:45" },
-        { "number": 6, "startTime": "14:55", "endTime": "15:40" },
-        { "number": 7, "startTime": "16:00", "endTime": "16:45" },
-        { "number": 8, "startTime": "16:55", "endTime": "17:40" },
-        { "number": 9, "startTime": "19:00", "endTime": "19:45" },
-        { "number": 10,"startTime": "19:55", "endTime": "20:40" }
-    ];
+async function selectTimeSlotsType() {
+    const timeSlotsOptions = ["非夏季作息 (14:00上课)", "夏季作息 (14:30上课)"];
+    console.log("JS: 提示用户选择作息时间类型。");
+    
+    // 如果不在APP内（网页测试环境），默认返回0
+    if (typeof window.AndroidBridgePromise === 'undefined') {
+        return 0; 
+    }
+    
+    const selectedIndex = await window.AndroidBridgePromise.showSingleSelection(
+        "选择作息时间",
+        JSON.stringify(timeSlotsOptions),
+        0 // 默认选中第一个
+    );
+    return selectedIndex;
 }
+
+// =================================================================
 
 /**
  * 生成全局课表配置
@@ -194,12 +228,24 @@ async function runImportFlow() {
         }
 
         const config = getCourseConfig();
-        const timeSlots = getPresetTimeSlots();
+
+        // ------------------ 选择作息时间阶段 ------------------
+        const timeSlotsIndex = await selectTimeSlotsType();
+        if (timeSlotsIndex === null && typeof window.AndroidBridgePromise !== 'undefined') {
+             AndroidBridge.showToast("已取消选择作息时间，终止导入");
+             return;
+        }
+        
+        let selectedTimeSlots = Non_summerTimeSlots;
+        if (timeSlotsIndex === 1) {
+             selectedTimeSlots = SummerTimeSlots;
+        }
+        // -----------------------------------------------------
 
         // 浏览器测试环境，直接输出结果
         if (typeof window.AndroidBridgePromise === 'undefined') {
             console.log("【测试成功】课表配置：", config);
-            console.log("【测试成功】作息时间：", timeSlots);
+            console.log("【测试成功】作息时间：", selectedTimeSlots);
             console.log("【测试成功】课程数据：", courses);
             alert(`解析成功！获取到 ${courses.length} 门课程以及作息时间。请打开F12控制台查看。`);
             return;
@@ -207,7 +253,7 @@ async function runImportFlow() {
 
         // APP 环境，执行保存配置和作息时间
         const configSaved = await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(config));
-        const timeSlotsSaved = await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+        const timeSlotsSaved = await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(selectedTimeSlots));
         if (!configSaved || !timeSlotsSaved) {
             AndroidBridge.showToast("保存课表时间配置失败！");
             // 注意：时间配置失败不一定阻断课程导入，这里选择继续导入课程

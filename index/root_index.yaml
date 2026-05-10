@@ -28,6 +28,11 @@ schools:
     initial: "U"
     resource_folder: "urp_jiaowu"
 
+  - id: "BUPT"
+    name: "北京邮电大学"
+    initial: "B"
+    resource_folder: "BUPT"
+
   - id: "CQU"
     name: "重庆大学"
     initial: "C"
@@ -416,7 +421,38 @@ schools:
     name: "中南民族大学"
     initial: "Z"
     resource_folder: "SCUEC"
-  - id: "JNU"
-    name: "暨南大学"
-    initial: "J"
-    resource_folder: "JNU"
+
+  - id: "UZZ"
+    name: "枣庄学院"
+    initial: "Z"
+    resource_folder: "UZZ"
+  
+  - id: "CMC"
+    name: "成都医学院"
+    initial: "C"
+    resource_folder: "CMC"
+
+  - id: "SDIPCT"
+    name: "山东石油化工学院"
+    initial: "S"
+    resource_folder: "SDIPCT"  
+
+  - id: "GDUST"
+    name: "广东科技学院"
+    initial: "G"
+    resource_folder: "GDUST"
+  
+  - id: "UPC"
+    name: "中国石油大学(华东)"
+    initial: "Z"
+    resource_folder: "UPC"   
+    
+  - id: "TJAU"
+    name: "天津农学院"
+    initial: "T"
+    resource_folder: "TJAU"
+
+  - id: "CCIT"
+    name: "长春工程学院"
+    initial: "C"
+    resource_folder: "CCIT"       

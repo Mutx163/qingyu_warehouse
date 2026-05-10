@@ -76,7 +76,7 @@
 
     // 清除课程名后面的课程序号
     function cleanCourseName(name) {
-        return String(name || "").replace(/\(\d{10}\.\d{2}\)\s*$/, "").trim();
+        return String(name || "").replace(/\([\d.]+\)\s*$/, "").trim();
     }
 
     // 解析周次位图字符串
@@ -84,7 +84,7 @@
         if (!bitmap || typeof bitmap !== "string") return [];
         const weeks = [];
         for (let i = 0; i < bitmap.length; i++) {
-            if (bitmap[i] === "1" && i >= 1) weeks.push(i-1);
+            if (bitmap[i] === "1") weeks.push(i);
         }
         return weeks;
     }
@@ -95,10 +95,6 @@
         return list;
     }
 
-    function mapSectionToTimeSlotNumber(section) {
-        const mapping = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8 };
-        return mapping[section] || section;
-    }
 
     // 反引号化 JavaScript 字面量字符串
     function unquoteJsLiteral(token) {
@@ -106,6 +102,7 @@
         if (!text) return "";
         if (text === "null" || text === "undefined") return "";
         if ((text.startsWith("\"") && text.endsWith("\"")) || (text.startsWith("'") && text.endsWith("'"))) {
+            return text.slice(1, -1);
         }
         if (text.includes('+') && /^[a-zA-Z_$][\w$]*\s*\+/.test(text)) {
             const varName = text.split('+')[0].trim();
@@ -138,52 +135,67 @@
         const text = String(htmlText || "");
         if (!text) return [];
         const unitCountMatch = text.match(/\bvar\s+unitCount\s*=\s*(\d+)\s*;/);
-        const unitCount = unitCountMatch ? parseInt(unitCountMatch[1], 10) : 0;
-        if (!Number.isInteger(unitCount) || unitCount <= 0) return [];
+        const unitCount = unitCountMatch ? parseInt(unitCountMatch[1], 10) : 12;
+        
         const courses = [];
-        const blockRe = /activity\s*=\s*new\s+TaskActivity\(([^]*?)\)\s*;\s*index\s*=\s*(?:(\d+)\s*\*\s*unitCount\s*\+\s*(\d+)|(\d+))\s*;\s*table\d+\.activities\[index\]/g;
-        let match;
-        while ((match = blockRe.exec(text)) !== null) {
-            const argsText = match[1] || "";
+        const activityBlockRegex = /activity\s*=\s*new\s+TaskActivity\(([\s\S]*?)\);([\s\S]*?)(?=var\s+taskId|activity\s*=\s*new|$)/g;
+        
+        let blockMatch;
+        while ((blockMatch = activityBlockRegex.exec(text)) !== null) {
+            const argsText = blockMatch[1];
+            const indexAssignmentText = blockMatch[2];
             const args = splitJsArgs(argsText);
+            
             if (args.length < 7) continue;
-            const dayPart = match[2];
-            const sectionPart = match[3];
-            const directIndexPart = match[4];
-            let indexValue = -1;
-            if (dayPart != null && sectionPart != null) {
-                indexValue = parseInt(dayPart, 10) * unitCount + parseInt(sectionPart, 10);
-            } else if (directIndexPart != null) {
-                indexValue = parseInt(directIndexPart, 10);
+
+            const teacherRaw = args[1];
+            let teacher = unquoteJsLiteral(teacherRaw);
+            if (teacherRaw && !/^['"]/.test(teacherRaw.trim()) && /join\s*\(/.test(teacherRaw)) {
+                const resolved = resolveTeachersForTaskActivityBlock(text, blockMatch.index);
+                if (resolved) teacher = resolved;
             }
-            if (!Number.isInteger(indexValue) || indexValue < 0) continue;
-            const day = Math.floor(indexValue / unitCount) + 1;
-            let section = (indexValue % unitCount) + 1;
-            section = mapSectionToTimeSlotNumber(section);
-            if (day < 1 || day > 7 || section < 1 || section > 16) continue;
-            let teacher = unquoteJsLiteral(args[1]);
-            if (teacher && !/^['"]/.test(String(args[1]).trim()) && /join\s*\(/.test(String(args[1]))) {
-                const resolved = resolveTeachersForTaskActivityBlock(text, match.index);
-                if (resolved) { teacher = resolved; }
-            }
-            let name = unquoteJsLiteral(args[3]);
-            if (name && !/^['"]/.test(String(args[3]).trim()) && /^\w+\s*\+\s*["']/.test(String(args[3]))) {
-                const varMatch = String(args[3]).match(/^(\w+)\s*\+/);
-                if (varMatch && varMatch[1] === "courseName") {
-                    const resolved = resolveCourseNameForTaskActivityBlock(text, match.index);
-                    if (resolved) {
-                        const suffixMatch = String(args[3]).match(/\+\s*["']([^)]+)["']$/);
-                        const suffix = suffixMatch ? suffixMatch[1] : "";
-                        name = resolved + (suffix ? `(${suffix})` : "");
-                    }
+
+            const nameRaw = args[3];
+            let name = unquoteJsLiteral(nameRaw);
+            if (nameRaw && !/^['"]/.test(nameRaw.trim()) && /courseName\s*\+/.test(nameRaw)) {
+                const resolved = resolveCourseNameForTaskActivityBlock(text, blockMatch.index);
+                if (resolved) {
+                    const suffixMatch = nameRaw.match(/\+\s*["']([^)]+)["']$/);
+                    const suffix = suffixMatch ? suffixMatch[1] : "";
+                    name = resolved + (suffix ? `(${suffix})` : "");
                 }
             }
             name = cleanCourseName(name);
-            const position = unquoteJsLiteral(args[5]);
+
+            let position = unquoteJsLiteral(args[5])
+                .replace(/"/g, "")
+                .replace(/\(.*\)/g, "")
+                .trim();
+
             const weekBitmap = unquoteJsLiteral(args[6]);
             const weeks = normalizeWeeks(parseValidWeeksBitmap(weekBitmap));
-            if (!name) continue;
-            courses.push({ name, teacher, position, day, startSection: section, endSection: section+1, weeks });
+            const indexRegex = /index\s*=\s*(\d+)\s*\*\s*unitCount\s*\+\s*(\d+)/g;
+            let indexMatch;
+            let sections = [];
+            let day = -1;
+
+            while ((indexMatch = indexRegex.exec(indexAssignmentText)) !== null) {
+                day = parseInt(indexMatch[1], 10) + 1;
+                sections.push(parseInt(indexMatch[2], 10) + 1);
+            }
+
+            if (day !== -1 && sections.length > 0) {
+                sections.sort((a, b) => a - b);
+                courses.push({
+                    name: name,
+                    teacher: teacher,
+                    position: position,
+                    day: day,
+                    startSection: sections[0],
+                    endSection: sections[sections.length - 1],
+                    weeks: weeks
+                });
+            }
         }
         return mergeContiguousSections(courses);
     }
@@ -253,7 +265,11 @@
             { number: 5, startTime: "14:00", endTime: "14:45" },
             { number: 6, startTime: "14:50", endTime: "15:35" },
             { number: 7, startTime: "16:05", endTime: "16:50" },
-            { number: 8, startTime: "16:55", endTime: "17:40" }
+            { number: 8, startTime: "16:55", endTime: "17:40" },
+            { number: 9, startTime: "18:40", endTime: "19:25" },
+            { number: 10, startTime: "19:30", endTime: "20:15" },
+            { number: 11, startTime: "20:25", endTime: "21:10" },
+            { number: 12, startTime: "21:15", endTime: "22:00" }
         ];
     }
 
@@ -262,7 +278,6 @@
         if (!window.AndroidBridgePromise) {
             throw new Error("AndroidBridgePromise 不可用，无法进行导入交互。");
         }
-        AndroidBridge.showToast("开始自动探测东北大学秦皇岛校区教务参数...");
 
         // 1. 探测学生 ID 和学期组件 tagId
         const entryUrl = `${BASE}/eams/courseTableForStd.action?&sf_request_type=ajax`;
@@ -290,11 +305,11 @@
         if (allSemesters.length === 0) {
             throw new Error("学期列表为空，无法继续导入。");
         }
-        const recentSemesters = allSemesters.slice(-8);
+        const recentSemesters = allSemesters;
         const selectIndex = await window.AndroidBridgePromise.showSingleSelection(
             "请选择导入学期",
             JSON.stringify(recentSemesters.map((s) => s.name || s.id)),
-            recentSemesters.length - 1
+            -1
         );
         if (selectIndex === null) {
             AndroidBridge.showToast("已取消导入");
