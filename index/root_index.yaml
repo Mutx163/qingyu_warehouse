@@ -464,5 +464,5 @@ schools:
 
   - id: "NCUT"
     name: "北方工业大学"
-    initial: "N"
+    initial: "B"
     resource_folder: "NCUT"
