@@ -3,10 +3,10 @@
 # CI/CD 构建脚本会读取此文件，以确定需要处理哪些学校的适配器资源。
 
 schools:
-  - id: "GLOBAL_TOOLS"    # id 唯一值
+  - id: "GLOBAL_TOOLS" # id 唯一值
     name: "通用工具与服务" # 名称
-    initial: "G"          # 排序首字母
-    resource_folder: "GLOBAL_TOOLS"   # 资源文件夹名称
+    initial: "G" # 排序首字母
+    resource_folder: "GLOBAL_TOOLS" # 资源文件夹名称
 
   - id: "zhengfang_jiaowu"
     name: "正方教务-通用教务"
@@ -38,10 +38,20 @@ schools:
     initial: "C"
     resource_folder: "CQU"
 
+  - id: "CQJTU"
+    name: "重庆交通大学"
+    initial: "C"
+    resource_folder: "CQJTU"
+
   - id: "CQCST"
     name: "重庆城市科技学院"
     initial: "C"
     resource_folder: "CQCST"
+
+  - id: "CQUT"
+    name: "重庆理工大学"
+    initial: "C"
+    resource_folder: "CQUT"
 
   - id: "CUST"
     name: "长春理工大学"
@@ -138,10 +148,20 @@ schools:
     initial: "F"
     resource_folder: "FJCPC"
 
+  - id: "FOSU"
+    name: "佛山大学"
+    initial: "F"
+    resource_folder: "FOSU"
+
   - id: "SDDFVC"
     name: "山东药品食品职业学院"
     initial: "S"
     resource_folder: "SDDFVC"
+
+  - id: "SDLIVC"
+    name: "山东轻工职业学院"
+    initial: "S"
+    resource_folder: "SDLIVC"
 
   - id: "CQCIVC"
     name: "重庆化工职业学院"
@@ -401,7 +421,7 @@ schools:
     name: "宁波工程学院"
     initial: "N"
     resource_folder: "NBUT"
-  
+
   - id: "HUAYU"
     name: "山东华宇工学院"
     initial: "S"
@@ -426,7 +446,7 @@ schools:
     name: "枣庄学院"
     initial: "Z"
     resource_folder: "UZZ"
-  
+
   - id: "CMC"
     name: "成都医学院"
     initial: "C"
@@ -435,18 +455,18 @@ schools:
   - id: "SDIPCT"
     name: "山东石油化工学院"
     initial: "S"
-    resource_folder: "SDIPCT"  
+    resource_folder: "SDIPCT"
 
   - id: "GDUST"
     name: "广东科技学院"
     initial: "G"
     resource_folder: "GDUST"
-  
+
   - id: "UPC"
     name: "中国石油大学(华东)"
     initial: "Z"
-    resource_folder: "UPC"   
-    
+    resource_folder: "UPC"
+
   - id: "TJAU"
     name: "天津农学院"
     initial: "T"
@@ -455,4 +475,78 @@ schools:
   - id: "CCIT"
     name: "长春工程学院"
     initial: "C"
-    resource_folder: "CCIT"       
+    resource_folder: "CCIT"
+
+  - id: "IMNC"
+    name: "呼和浩特民族学院"
+    initial: "H"
+    resource_folder: "IMNC"
+
+  - id: "NCUT"
+    name: "北方工业大学"
+    initial: "B"
+    resource_folder: "NCUT"
+
+  - id: "JXNU"
+    name: "江西师范大学"
+    initial: "J"
+    resource_folder: "JXNU"
+
+  - id: "STCNCHU"
+    name: "南昌航空大学科技学院"
+    initial: "N"
+    resource_folder: "STCNCHU"
+
+  - id: "CFEC"
+    name: "重庆财经学院"
+    initial: "C"
+    resource_folder: "CFEC"
+
+  - id: "AHZYYGZ"
+    name: "安徽中医药高等专科学校"
+    initial: "A"
+    resource_folder: "AHZYYGZ"
+
+  - id: "XATU"
+    name: "西安工业大学"
+    initial: "X"
+    resource_folder: "XATU"
+
+  - id: "NJTECH"
+    name: "南京工业大学"
+    initial: "N"
+    resource_folder: "NJTECH"
+
+  - id: "CAUC"
+    name: "中国民航大学"
+    initial: "Z"
+    resource_folder: "CAUC"
+
+  - id: "ECJTU"
+    name: "华东交通大学"
+    initial: "H"
+    resource_folder: "ECJTU"
+
+  - id: "WENHUA"
+    name: "文华学院"
+    initial: "W"
+    resource_folder: "WENHUA"
+
+  - id: "XYAFU"
+    name: "信阳农林学院"
+    initial: "X"
+    resource_folder: "XYAFU"
+
+  - id: "ZJUT"
+    name: "浙江工业大学"
+    initial: "Z"
+    resource_folder: "ZJUT"
+  
+  - id: "HFNU"
+    name: "合肥师范学院"
+    initial: "H"
+    resource_folder: "HFNU"
+  - id: "JHZYEDU"
+    name: "江西航空职业技术学院"
+    initial: "J"
+    resource_folder: "JHZYEDU"

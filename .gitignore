@@ -38,3 +38,11 @@ __pycache__/
 
 # OMX local state
 .omx/
+
+# Upstream additions
+.idea/*
+!.idea/jsonSchemas.xml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+resources/GLOBAL_TOOLS/test.js

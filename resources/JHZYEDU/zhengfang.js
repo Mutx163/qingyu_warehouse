@@ -1,7 +1,6 @@
-// 广东科技学院(gdust.edu.cn) 拾光课程表适配脚本
-// 基于正方教务系统接口适配
-// 非该大学开发者适配,开发者无法及时发现问题
-// 出现问题请提issues或者提交pr更改,这更加快速
+// 江西航空职业技术学院(jhzyedu.cn) 拾光课程表适配脚本
+// 正方教务系统V9.0 API适配方案
+// 参考：GDUST广东科技学院适配案例
 
 /**
  * 解析周次字符串，处理单双周和周次范围。
@@ -16,35 +15,33 @@ function parseWeeks(weekStr) {
         const trimmedSet = set.trim();
 
         const rangeMatch = trimmedSet.match(/(\d+)-(\d+)周/);
-        const singleMatch = trimmedSet.match(/^(\d+)周/); // 匹配以数字周结束的
+        const singleMatch = trimmedSet.match(/^(\d+)周/);
 
         let start = 0;
         let end = 0;
         let processed = false;
 
-        if (rangeMatch) { // 范围, 如 "1-5周"
+        if (rangeMatch) {
             start = Number(rangeMatch[1]);
             end = Number(rangeMatch[2]);
             processed = true;
-        } else if (singleMatch) { // 单个周, 如 "6周"
+        } else if (singleMatch) {
             start = end = Number(singleMatch[1]);
             processed = true;
         }
         
         if (processed) {
-            // 确定单双周
             const isSingle = trimmedSet.includes('(单)');
             const isDouble = trimmedSet.includes('(双)');
 
             for (let w = start; w <= end; w++) {
-                if (isSingle && w % 2 === 0) continue; // 单周跳过偶数
-                if (isDouble && w % 2 !== 0) continue; // 双周跳过奇数
+                if (isSingle && w % 2 === 0) continue;
+                if (isDouble && w % 2 !== 0) continue;
                 weeks.push(w);
             }
         }
     }
 
-    // 去重并排序
     return [...new Set(weeks)].sort((a, b) => a - b);
 }
 
@@ -54,7 +51,6 @@ function parseWeeks(weekStr) {
 function parseJsonData(jsonData) {
     console.log("JS: parseJsonData 正在解析 JSON 数据...");
     
-    // 检查JSON结构：新的数据在 kbList 字段中
     if (!jsonData || !Array.isArray(jsonData.kbList)) {
         console.warn("JS: JSON 数据结构错误或缺少 kbList 字段。");
         return []; 
@@ -64,7 +60,6 @@ function parseJsonData(jsonData) {
     const finalCourseList = [];
 
     for (const rawCourse of rawCourseList) {
-        // 关键字段检查： kcmc(课名), xm(教师), cdmc(教室), xqj(星期), jcs(节次范围), zcd(周次描述)
         if (!rawCourse.kcmc || !rawCourse.xm || !rawCourse.cdmc || 
             !rawCourse.xqj || !rawCourse.jcs || !rawCourse.zcd) {
             continue;
@@ -72,21 +67,17 @@ function parseJsonData(jsonData) {
 
         const weeksArray = parseWeeks(rawCourse.zcd);
         
-        // 周次有效性检查
         if (weeksArray.length === 0) {
             continue;
         }
         
-        // 解析节次范围，例如 "1-2"
         const sectionParts = rawCourse.jcs.split('-');
         const startSection = Number(sectionParts[0]);
         const endSection = Number(sectionParts[sectionParts.length - 1]); 
 
-        const day = Number(rawCourse.xqj); // xqj: 星期几 (周一为1, 周日为7)
+        const day = Number(rawCourse.xqj);
         
-        // 数字有效性检查
         if (isNaN(day) || isNaN(startSection) || isNaN(endSection) || day < 1 || day > 7 || startSection > endSection) {
-            // console.warn(`JS: 课程 ${rawCourse.kcmc} 星期或节次数据无效，跳过。`);
             continue;
         }
 
@@ -111,34 +102,27 @@ function parseJsonData(jsonData) {
     return finalCourseList;
 }
 
-
-
 function validateYearInput(input) {
-    console.log("JS: validateYearInput 被调用，输入: " + input);
     if (/^[0-9]{4}$/.test(input)) {
-        console.log("JS: validateYearInput 验证通过。");
         return false;
     } else {
-        console.log("JS: validateYearInput 验证失败。");
         return "请输入四位数字的学年！";
     }
 }
 
 async function promptUserToStart() {
-    console.log("JS: 流程开始：显示公告。");
     return await window.AndroidBridgePromise.showAlert(
         "教务系统课表导入",
-        "导入前请确保您已在浏览器中成功登录教务系统",
+        "导入前请确保您已在浏览器中成功登录教务系统。\n将自动通过API获取课表数据，无需手动打开课表页面。",
         "好的，开始导入"
     );
 }
 
 async function getAcademicYear() {
     const currentYear = new Date().getFullYear().toString();
-    console.log("JS: 提示用户输入学年。");
     return await window.AndroidBridgePromise.showPrompt(
         "选择学年",
-        "请输入要导入课程的起始学年（例如 2025-2026 应输入2025）:",
+        "请输入要导入课程的起始学年（例如 2025-2026 学年应输入 2025）:",
         currentYear,
         "validateYearInput"
     );
@@ -146,7 +130,6 @@ async function getAcademicYear() {
 
 async function selectSemester() {
     const semesters = ["第一学期", "第二学期"];
-    console.log("JS: 提示用户选择学期。");
     const semesterIndex = await window.AndroidBridgePromise.showSingleSelection(
         "选择学期",
         JSON.stringify(semesters),
@@ -155,97 +138,85 @@ async function selectSemester() {
     return semesterIndex;
 }
 
-/**
- * 将选择索引转换为 API 所需的学期码。
- */
 function getSemesterCode(semesterIndex) {
-    // semesterIndex 3 (第一学期), 12 (第二学期)
+    // 正方教务V9.0: 3=第一学期, 12=第二学期
     return semesterIndex === 0 ? "3" : "12";
 }
 
-
 /**
- * 请求和解析课程数据
+ * 通过 API 请求课表数据
  */
 async function fetchAndParseCourses(academicYear, semesterIndex) {
     const semesterCode = getSemesterCode(semesterIndex);
-    const requestBody = `xnm=${academicYear}&xqm=${semesterCode}&kzlx=ck&xsdm=&kclbdm=`;
+    const requestBody = "xnm=" + academicYear + "&xqm=" + semesterCode + "&kzlx=ck&xsdm=&kclbdm=";
     
-    // 定义可能的入口地址：1. WebVPN 穿透地址 2. 内网直连地址
-    // 该学校反馈内网环境下 webvpn的入口会被跳转为内网地址 因此特别调整为存在多个链接获取，没有这个问题的适配参考可以简化逻辑
-    const targetUrls = [
-        "https://webvpn.gdust.edu.cn/http/77726476706e69737468656265737421a1a013d2766626022b5cc7fd/kbcx/xskbcx_cxXsgrkb.html?vpn-12-o1-172.16.254.1&gnmkdm=N2151",
-        "http://172.16.254.1/kbcx/xskbcx_cxXsgrkb.html?gnmkdm=N2151"
-    ];
+    const apiUrl = "https://jw.jhzyedu.cn/kbcx/xskbcx_cxXsgrkb.html?gnmkdm=N2151";
 
-    for (const url of targetUrls) {
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" 
-                },
-                body: requestBody,
-                credentials: "include"
-            });
+    AndroidBridge.showToast("正在通过API获取课表数据...");
+    
+    try {
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" 
+            },
+            body: requestBody,
+            credentials: "include"
+        });
 
-            if (response.ok) {
-                const jsonText = await response.text();
-                const jsonData = JSON.parse(jsonText);
-                if (jsonData && jsonData.kbList) {
-                    const parsedCourses = parseJsonData(jsonData);
-                    if (parsedCourses.length > 0) {
-                        return {
-                            courses: parsedCourses,
-                            config: {
-                                semesterStartDate: null,
-                                semesterTotalWeeks: 20
-                            }
-                        };
-                    }
+        if (response.ok) {
+            const jsonText = await response.text();
+            const jsonData = JSON.parse(jsonText);
+            if (jsonData && jsonData.kbList) {
+                const parsedCourses = parseJsonData(jsonData);
+                if (parsedCourses.length > 0) {
+                    return {
+                        courses: parsedCourses,
+                        config: {
+                            semesterStartDate: null,
+                            semesterTotalWeeks: 20
+                        }
+                    };
                 }
             }
-        } catch (e) {
-            console.error(`Entry failed: ${url}`);
         }
+        AndroidBridge.showToast("API 返回数据异常，请检查登录状态或学年学期选择。");
+        return null;
+    } catch (e) {
+        console.error("API fetch error: " + e.message);
+        AndroidBridge.showToast("请求课表数据失败，请确认已登录教务系统。");
+        return null;
     }
-    AndroidBridge.showToast("未能获取课表数据，请检查网络环境或登录状态。");
-    return null;
 }
 
 async function saveCourses(parsedCourses) {
-    AndroidBridge.showToast(`正在保存 ${parsedCourses.length} 门课程...`);
-    console.log(`JS: 尝试保存 ${parsedCourses.length} 门课程...`);
+    AndroidBridge.showToast("正在保存 " + parsedCourses.length + " 门课程...");
     try {
         await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(parsedCourses, null, 2));
         console.log("JS: 课程保存成功！");
         return true;
     } catch (error) {
-        AndroidBridge.showToast(`课程保存失败: ${error.message}`);
+        AndroidBridge.showToast("课程保存失败: " + error.message);
         console.error('JS: Save Courses Error:', error);
         return false;
     }
 }
 
-// 统一作息时间
+// 江西航空职业技术学院作息时间（每节40分钟）
 const TimeSlots = [
-    { number: 1, startTime: "08:30", endTime: "09:15" },
-    { number: 2, startTime: "09:20", endTime: "10:05" },
-    { number: 3, startTime: "10:25", endTime: "11:10" },
-    { number: 4, startTime: "11:15", endTime: "12:00" },
-    { number: 5, startTime: "14:40", endTime: "15:25" },
-    { number: 6, startTime: "15:30", endTime: "16:15" },
-    { number: 7, startTime: "16:30", endTime: "17:15" },
-    { number: 8, startTime: "17:20", endTime: "18:05" },
-    { number: 9, startTime: "19:30", "endTime": "20:15" },
-    { number: 10, startTime: "20:20", "endTime": "21:05" },
+    { number: 1, startTime: "09:00", endTime: "09:40" },
+    { number: 2, startTime: "09:45", endTime: "10:25" },
+    { number: 3, startTime: "10:35", endTime: "11:15" },
+    { number: 4, startTime: "11:20", endTime: "12:00" },
+    { number: 5, startTime: "13:30", endTime: "14:10" },
+    { number: 6, startTime: "14:15", endTime: "14:55" },
+    { number: 7, startTime: "15:05", endTime: "15:45" },
+    { number: 8, startTime: "15:50", endTime: "16:30" }
 ];
 
 async function importPresetTimeSlots(timeSlots) {
-    console.log(`JS: 准备导入 ${timeSlots.length} 个预设时间段。`);
-
     if (timeSlots.length > 0) {
-        AndroidBridge.showToast(`正在导入 ${timeSlots.length} 个预设时间段...`);
+        AndroidBridge.showToast("正在导入 " + timeSlots.length + " 个预设时间段...");
         try {
             await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
             AndroidBridge.showToast("预设时间段导入成功！");
@@ -254,9 +225,6 @@ async function importPresetTimeSlots(timeSlots) {
             AndroidBridge.showToast("导入时间段失败: " + error.message);
             console.error('JS: Save Time Slots Error:', error);
         }
-    } else {
-        AndroidBridge.showToast("警告：时间段为空，未导入时间段信息。");
-        console.warn("JS: 警告：传入时间段为空，未导入时间段信息。");
     }
 }
 
@@ -266,53 +234,43 @@ async function runImportFlow() {
     const alertConfirmed = await promptUserToStart();
     if (!alertConfirmed) {
         AndroidBridge.showToast("用户取消了导入。");
-        console.log("JS: 用户取消了导入流程。");
         return;
     }
 
     const academicYear = await getAcademicYear();
     if (academicYear === null) {
         AndroidBridge.showToast("导入已取消。");
-        console.log("JS: 获取学年失败/取消，流程终止。");
         return;
     }
-    console.log(`JS: 已选择学年: ${academicYear}`);
 
 
     const semesterIndex = await selectSemester();
     if (semesterIndex === null || semesterIndex === -1) {
         AndroidBridge.showToast("导入已取消。");
-        console.log("JS: 选择学期失败/取消，流程终止。");
         return;
     }
-    console.log(`JS: 已选择学期索引: ${semesterIndex}`);
 
     const result = await fetchAndParseCourses(academicYear, semesterIndex);
     if (result === null) {
-        console.log("JS: 课程获取或解析失败，流程终止。");
         return;
     }
     const { courses, config } = result;
 
     const saveResult = await saveCourses(courses);
     if (!saveResult) {
-        console.log("JS: 课程保存失败，流程终止。");
         return;
     }
     
     try {
         await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(config));
-        AndroidBridge.showToast(`课表配置更新成功！总周数：${config.semesterTotalWeeks}周。`);
+        AndroidBridge.showToast("课表配置更新成功！总周数：" + config.semesterTotalWeeks + "周。");
     } catch (error) {
-        AndroidBridge.showToast(`课表配置保存失败: ${error.message}`);
-        console.error('JS: Save Config Error:', error);
+        AndroidBridge.showToast("课表配置保存失败: " + error.message);
     }
-
 
     await importPresetTimeSlots(TimeSlots);
 
-
-    AndroidBridge.showToast(`课程导入成功，共导入 ${courses.length} 门课程！`);
+    AndroidBridge.showToast("课程导入成功，共导入 " + courses.length + " 门课程！");
     console.log("JS: 整个导入流程执行完毕并成功。");
     AndroidBridge.notifyTaskCompletion();
 }

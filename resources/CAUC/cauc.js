@@ -1,4 +1,4 @@
-// 广东科技学院(gdust.edu.cn) 拾光课程表适配脚本
+// 中国民航大学(cauc.edu.cn)拾光课程表适配脚本
 // 基于正方教务系统接口适配
 // 非该大学开发者适配,开发者无法及时发现问题
 // 出现问题请提issues或者提交pr更改,这更加快速
@@ -150,7 +150,7 @@ async function selectSemester() {
     const semesterIndex = await window.AndroidBridgePromise.showSingleSelection(
         "选择学期",
         JSON.stringify(semesters),
-        0
+        -1
     );
     return semesterIndex;
 }
@@ -170,45 +170,38 @@ function getSemesterCode(semesterIndex) {
 async function fetchAndParseCourses(academicYear, semesterIndex) {
     const semesterCode = getSemesterCode(semesterIndex);
     const requestBody = `xnm=${academicYear}&xqm=${semesterCode}&kzlx=ck&xsdm=&kclbdm=`;
-    
-    // 定义可能的入口地址：1. WebVPN 穿透地址 2. 内网直连地址
-    // 该学校反馈内网环境下 webvpn的入口会被跳转为内网地址 因此特别调整为存在多个链接获取，没有这个问题的适配参考可以简化逻辑
-    const targetUrls = [
-        "https://webvpn.gdust.edu.cn/http/77726476706e69737468656265737421a1a013d2766626022b5cc7fd/kbcx/xskbcx_cxXsgrkb.html?vpn-12-o1-172.16.254.1&gnmkdm=N2151",
-        "http://172.16.254.1/kbcx/xskbcx_cxXsgrkb.html?gnmkdm=N2151"
-    ];
+    const targetUrl = "https://http-jwgl-cauc-edu-cn-80.webvpn.cauc.edu.cn/kbcx/xskbcx_cxXsgrkb.html?gnmkdm=N2151";
 
-    for (const url of targetUrls) {
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" 
-                },
-                body: requestBody,
-                credentials: "include"
-            });
+    try {
+        const response = await fetch(targetUrl, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" 
+            },
+            body: requestBody,
+            credentials: "include"
+        });
 
-            if (response.ok) {
-                const jsonText = await response.text();
-                const jsonData = JSON.parse(jsonText);
-                if (jsonData && jsonData.kbList) {
-                    const parsedCourses = parseJsonData(jsonData);
-                    if (parsedCourses.length > 0) {
-                        return {
-                            courses: parsedCourses,
-                            config: {
-                                semesterStartDate: null,
-                                semesterTotalWeeks: 20
-                            }
-                        };
-                    }
+        if (response.ok) {
+            const jsonText = await response.text();
+            const jsonData = JSON.parse(jsonText);
+            if (jsonData && jsonData.kbList) {
+                const parsedCourses = parseJsonData(jsonData);
+                if (parsedCourses.length > 0) {
+                    return {
+                        courses: parsedCourses,
+                        config: {
+                            semesterStartDate: null,
+                            semesterTotalWeeks: 20
+                        }
+                    };
                 }
             }
-        } catch (e) {
-            console.error(`Entry failed: ${url}`);
         }
+    } catch (e) {
+        console.error(`Request failed: ${targetUrl}`, e);
     }
+
     AndroidBridge.showToast("未能获取课表数据，请检查网络环境或登录状态。");
     return null;
 }
@@ -229,16 +222,18 @@ async function saveCourses(parsedCourses) {
 
 // 统一作息时间
 const TimeSlots = [
-    { number: 1, startTime: "08:30", endTime: "09:15" },
-    { number: 2, startTime: "09:20", endTime: "10:05" },
-    { number: 3, startTime: "10:25", endTime: "11:10" },
-    { number: 4, startTime: "11:15", endTime: "12:00" },
-    { number: 5, startTime: "14:40", endTime: "15:25" },
-    { number: 6, startTime: "15:30", endTime: "16:15" },
-    { number: 7, startTime: "16:30", endTime: "17:15" },
-    { number: 8, startTime: "17:20", endTime: "18:05" },
-    { number: 9, startTime: "19:30", "endTime": "20:15" },
-    { number: 10, startTime: "20:20", "endTime": "21:05" },
+    { number: 1, startTime: "08:00", endTime: "08:45" },
+    { number: 2, startTime: "08:50", endTime: "09:35" },
+    { number: 3, startTime: "10:05", endTime: "10:50" },
+    { number: 4, startTime: "10:55", endTime: "11:40" },
+    { number: 5, startTime: "13:30", endTime: "14:15" },
+    { number: 6, startTime: "14:20", endTime: "15:05" },
+    { number: 7, startTime: "15:35", endTime: "16:20" },
+    { number: 8, startTime: "16:25", endTime: "17:50" },
+    { number: 9, startTime: "18:30", "endTime": "19:15" },
+    { number: 10, startTime: "19:00", "endTime": "20:05" },
+    { number: 11, startTime: "20:10", "endTime": "20:55" },
+    { number: 12, startTime: "21:00", "endTime": "21:45" },
 ];
 
 async function importPresetTimeSlots(timeSlots) {
