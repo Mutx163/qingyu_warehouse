@@ -61,16 +61,43 @@ async function selectSemester() {
 }
 
 /**
+ * 动态获取当前教务系统的合法数据接口 API
+ */
+async function fetchValidApiUrl() {
+    try {
+        const indexUrl = "http://111.43.36.164/student/courseSelect/calendarSemesterCurriculum/index";
+        const response = await fetch(indexUrl, { method: "GET", credentials: "include" });
+        const htmlText = await response.text();
+        
+        const match = htmlText.match(/url:\s*["']([^"']*\/ajaxStudentSchedule\/past\/callback)["']/);
+        if (match && match[1]) {
+            return match[1];
+        }
+        throw new Error("未能从页面中解析出有效的API路径");
+    } catch (e) {
+        console.error("解析动态API失败:", e);
+        return null;
+    }
+}
+
+/**
  * 网络请求和数据解析
  */
 async function fetchAndParseJwData(academicYear, semesterIndex) {
     try {
+        AndroidBridge.showToast("正在获取教务初始化凭证...");
+        const targetApiSubUrl = await fetchValidApiUrl();
+        if (!targetApiSubUrl) {
+            throw new Error("初始化凭证获取失败，请确认是否处于登录状态");
+        }
+
         const semesterValue = parseInt(semesterIndex) + 1; 
         const endYear = parseInt(academicYear) + 1;
         const planCode = `${academicYear}-${endYear}-${semesterValue}-1`;
 
         AndroidBridge.showToast("正在获取教务数据...");
-        const response = await fetch("http://111.43.36.164/student/courseSelect/thisSemesterCurriculum/396Yg00r50/ajaxStudentSchedule/past/callback", {
+        const fullApiUrl = `http://111.43.36.164${targetApiSubUrl}`;
+        const response = await fetch(fullApiUrl, {
             "headers": { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
             "body": `&planCode=${planCode}`,
             "method": "POST",
@@ -80,8 +107,8 @@ async function fetchAndParseJwData(academicYear, semesterIndex) {
         const data = await response.json();
         
         if (!data) throw new Error("服务器未返回任何数据");
+        if (data.errorMessage) throw new Error(data.errorMessage);
         if (!data.dateList || !Array.isArray(data.dateList)) {
-            console.error("教务返回数据异常:", data);
             throw new Error("未能获取到课程列表，请检查是否已登录或该学期是否有课");
         }
 
@@ -133,7 +160,9 @@ async function saveToApp(result) {
     const courseSuccess = await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(result.courses));
     if (!courseSuccess) return false;
 
-    await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(result.timeSlots));
+    if (result.timeSlots && result.timeSlots.length > 0) {
+        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(result.timeSlots));
+    }
     
     await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify({
         semesterTotalWeeks: 20 
