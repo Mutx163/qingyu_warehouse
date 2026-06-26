@@ -119,18 +119,17 @@ const MMPT_CONFIG = {
 const MMVT_SCHEDULE_CONFIG = {
     '南校区': {
         timeSlots: [
-            { number: 1, startTime: "08:20", endTime: "09:00" },
-            { number: 2, startTime: "09:10", endTime: "09:50" },
-            { number: 3, startTime: "10:00", endTime: "10:40" },
-            { number: 4, startTime: "10:50", endTime: "11:30" },
-            { number: 5, startTime: "11:40", endTime: "12:20" },
-            { number: 6, startTime: "14:30", endTime: "15:10" },
-            { number: 7, startTime: "15:20", endTime: "16:00" },
-            { number: 8, startTime: "16:15", endTime: "16:55" },
-            { number: 9, startTime: "17:05", endTime: "17:45" },
-            { number: 10, startTime: "19:00", endTime: "19:40" },
-            { number: 11, startTime: "19:50", endTime: "20:30" },
-            { number: 12, startTime: "20:40", endTime: "21:20" }
+            { number: 1, startTime: "08:30", endTime: "09:10" },
+            { number: 2, startTime: "09:20", endTime: "10:00" },
+            { number: 3, startTime: "10:15", endTime: "10:55" },
+            { number: 4, startTime: "11:05", endTime: "11:45" },
+            { number: 5, startTime: "14:30", endTime: "15:10" },
+            { number: 6, startTime: "15:20", endTime: "16:00" },
+            { number: 7, startTime: "16:15", endTime: "16:55" },
+            { number: 8, startTime: "17:05", endTime: "17:45" },
+            { number: 9, startTime: "19:00", endTime: "19:40" },
+            { number: 10, startTime: "19:50", endTime: "20:30" },
+            { number: 11, startTime: "20:40", endTime: "21:20" }
         ]
     },
     '北校区': {

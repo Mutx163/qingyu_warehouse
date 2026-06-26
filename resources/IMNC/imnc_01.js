@@ -3,6 +3,11 @@
  * 放置于测试目录用于真机测试
  */
 
+// 清理 <wbr> 标签
+function cleanWbr(str) {
+    return str ? str.replace(/<wbr\s*\/?>/gi, '') : str;
+}
+
 // 周次解析函数
 function parseWeeks(weekStr) {
     let weeks = [];
@@ -71,6 +76,11 @@ function fetchAndParseCourses() {
                     let nameMatch2 = namePart.match(/<<(.*?)>>/);
                     if (nameMatch2) name = nameMatch2[1];
                 }
+                
+                // 清理 <wbr> 标签
+                name = cleanWbr(name);
+                position = cleanWbr(position);
+                teacher = cleanWbr(teacher);
                 
                 let weeks = parseWeeks(weekStr);
                 

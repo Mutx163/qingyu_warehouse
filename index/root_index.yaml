@@ -546,7 +546,23 @@ schools:
     name: "合肥师范学院"
     initial: "H"
     resource_folder: "HFNU"
+
   - id: "JHZYEDU"
     name: "江西航空职业技术学院"
     initial: "J"
     resource_folder: "JHZYEDU"
+
+  - id: "QQHRIT"
+    name: "齐齐哈尔工程学院"
+    initial: "Q"
+    resource_folder: "QQHRIT"
+
+  - id: "IMU"
+    name: "内蒙古大学"
+    initial: "N"
+    resource_folder: "IMU"    
+
+  - id: "QQHRU"
+    name: "齐齐哈尔大学"
+    initial: "Q"
+    resource_folder: "QQHRU"  
