@@ -40,8 +40,6 @@ __pycache__/
 .omx/
 
 # Upstream additions
-.idea/*
-!.idea/jsonSchemas.xml
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json

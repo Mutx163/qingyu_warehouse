@@ -139,6 +139,7 @@ docs/
 ## 更多链接
 
 - [贡献指南](./CONTRIBUTING.md)
+- [安全报告](./SECURITY.md)
 - [插件工作台说明](./tools/CourseImporterTestTool/README.md)
 - [快速开始](./docs/QUICK_START.md)
 - [脚本 API](./docs/SCRIPT_API.md)
