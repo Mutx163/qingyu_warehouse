@@ -606,4 +606,14 @@ schools:
   - id: "WHUT"
     name: "武汉理工大学"
     initial: "W"
-    resource_folder: "WHUT"  
+    resource_folder: "WHUT"
+
+  - id: "CJLU"
+    name: "中国计量大学"
+    initial: "Z"
+    resource_folder: "CJLU"
+
+  - id: "CZIMT"
+    name: "常州机电职业技术学院"
+    initial: "C"
+    resource_folder: "CZIMT"
