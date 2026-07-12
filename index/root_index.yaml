@@ -617,3 +617,8 @@ schools:
     name: "常州机电职业技术学院"
     initial: "C"
     resource_folder: "CZIMT"
+
+  - id: "GSCMXY"
+    name: "甘肃财贸职业学院"
+    initial: "G"
+    resource_folder: "GSCMXY"
