@@ -213,6 +213,11 @@ schools:
     initial: "H"
     resource_folder: "HUSE"
 
+  - id: "HUST"
+    name: "华中科技大学"
+    initial: "H"
+    resource_folder: "HUST"
+
   - id: "JSNU"
     name: "江苏师范大学"
     initial: "J"
@@ -627,3 +632,8 @@ schools:
     name: "青岛理工大学"
     initial: "Q"
     resource_folder: "QUT"
+
+  - id: "CSUFT"
+    name: "中南林业科技大学"
+    initial: "Z"
+    resource_folder: "CSUFT"
