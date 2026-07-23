@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -65,6 +66,28 @@ def read_upstream_file(warehouse_dir: Path, relative_path: str) -> str:
         ["show", f"{UPSTREAM_REF}:{normalized}"],
         warehouse_dir,
     ).stdout
+
+
+def parse_asset_js_path(line: str) -> str | None:
+    """Parse an ``asset_js_path`` YAML scalar without treating comments as data."""
+    stripped = line.strip()
+    if not stripped.startswith("asset_js_path:"):
+        return None
+
+    value = stripped.split(":", 1)[1].strip()
+    if not value:
+        return None
+
+    try:
+        fields = shlex.split(value, comments=True, posix=True)
+    except ValueError as exc:
+        raise ValueError(f"Invalid asset_js_path value: {value!r}") from exc
+
+    if not fields:
+        return None
+    if len(fields) != 1:
+        raise ValueError(f"Expected one asset_js_path value, got: {value!r}")
+    return fields[0]
 
 
 def ensure_upstream_remote(warehouse_dir: Path) -> None:
@@ -130,7 +153,7 @@ def validate_upstream_scripts_in_staging(
             for line in adapters_text.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("asset_js_path:"):
-                    asset = stripped.split(":", 1)[1].strip().strip('"')
+                    asset = parse_asset_js_path(stripped)
                     if asset:
                         script_text = read_upstream_file(warehouse_dir, f"{rel_folder}/{asset}")
                         (target / asset).write_text(script_text, encoding="utf-8")

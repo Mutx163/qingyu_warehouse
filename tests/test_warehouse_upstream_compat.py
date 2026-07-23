@@ -13,9 +13,25 @@ from warehouse_upstream_compat import (  # noqa: E402
     validate_protected_paths,
     validate_sync_plan,
 )
+from sync_upstream import parse_asset_js_path  # noqa: E402
 
 
 class WarehouseUpstreamCompatTest(unittest.TestCase):
+    def test_parses_quoted_asset_path_with_inline_comment(self) -> None:
+        self.assertEqual(
+            parse_asset_js_path('asset_js_path: "JLU_01.js" #相对路径'),
+            "JLU_01.js",
+        )
+
+    def test_parses_asset_path_with_quoted_hash(self) -> None:
+        self.assertEqual(
+            parse_asset_js_path('asset_js_path: "adapter#v2.js" #说明'),
+            "adapter#v2.js",
+        )
+
+    def test_empty_asset_path_is_allowed(self) -> None:
+        self.assertIsNone(parse_asset_js_path("asset_js_path: # 无脚本"))
+
     def test_blocks_protected_paths(self) -> None:
         report = validate_protected_paths(["tools/CourseImporterTestTool/popup.js"])
         self.assertFalse(report.ok)
