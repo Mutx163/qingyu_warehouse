@@ -92,15 +92,16 @@ function extractCoursesFromLiveTableLikeLegacy(table) {
           continue;
         }
 
-        // 与旧版相同的时间正则（允许中间杂质）
-        const timeRegex = /([\d\-,]+)(?:\((单|双|.*?)\))?.*?\[([\d\-]+)节\]/;
-        const timeLineIndex = lines.findIndex((line) => timeRegex.test(line));
+        // 找含「节」的行，再用加固后的周次/节次解析（防班级号污染）
+        const timeLineIndex = lines.findIndex((line) =>
+          parseTimeFieldsFromText(line),
+        );
         if (timeLineIndex === -1) {
           continue;
         }
 
-        const match = lines[timeLineIndex].match(timeRegex);
-        if (!match) {
+        const parsedTime = parseTimeFieldsFromText(lines[timeLineIndex]);
+        if (!parsedTime) {
           continue;
         }
 
@@ -109,56 +110,28 @@ function extractCoursesFromLiveTableLikeLegacy(table) {
           continue;
         }
 
-        const teacher = lines[1] || '未知';
-        const weeksStr = match[1];
-        const oddEven = match[2];
-        const sectionsStr = match[3];
+        let teacher = '未知';
+        for (let index = 1; index < timeLineIndex; index++) {
+          const line = lines[index];
+          if (/^\[[^\]]+\]$/.test(line)) {
+            continue;
+          }
+          if (line.includes('班') || line.includes('选课人数')) {
+            continue;
+          }
+          if (line.includes('节')) {
+            continue;
+          }
+          teacher = line;
+        }
         const position =
           timeLineIndex + 1 < lines.length
             ? lines[timeLineIndex + 1]
             : '未知地点';
 
-        const weeks = [];
-        weeksStr.split(',').forEach((weekPart) => {
-          const part = weekPart.trim();
-          if (!part) {
-            return;
-          }
-          if (part.includes('-')) {
-            const [startRaw, endRaw] = part.split('-');
-            const start = parseInt(startRaw, 10);
-            const end = parseInt(endRaw, 10);
-            if (isNaN(start) || isNaN(end)) {
-              return;
-            }
-            for (let week = start; week <= end; week++) {
-              if (oddEven === '单' && week % 2 === 0) continue;
-              if (oddEven === '双' && week % 2 !== 0) continue;
-              weeks.push(week);
-            }
-            return;
-          }
-          const week = parseInt(part, 10);
-          if (!isNaN(week)) {
-            if (oddEven === '单' && week % 2 === 0) return;
-            if (oddEven === '双' && week % 2 !== 0) return;
-            weeks.push(week);
-          }
-        });
-
-        if (!weeks.length) {
-          continue;
-        }
-
-        const sectionParts = sectionsStr.split('-');
-        const startSection = parseInt(sectionParts[0], 10);
-        const endSection = parseInt(
-          sectionParts[sectionParts.length - 1],
-          10,
-        );
-        if (isNaN(startSection) || isNaN(endSection)) {
-          continue;
-        }
+        const weeks = parsedTime.weeks;
+        const startSection = parsedTime.startSection;
+        const endSection = parsedTime.endSection;
 
         // 与旧版相同的去重键（不含 teacher/position，避免同课被拆成多条）
         const uniqueKey = [
@@ -262,34 +235,67 @@ function parseWeeks(weeksStr, oddEvenHint) {
  */
 function parseWeekAndSection(text) {
   const source = String(text || '').replace(/\u00a0/g, ' ');
-  // 与页面旧版一致：中间允许任意杂质（班级名、空格等）
-  // 例如：1-16(全部)[01-02节] / 2-17(周)[05-06节] / 1-8(单)xxx[01-02节]
-  const match =
-    source.match(
-      /([\d,\-]+)\s*(?:\((单|双|全部|周|.*?)\))?\s*.*?\[([\d\-]+)节\]/,
-    ) ||
-    source.match(/([\d,\-]+)\s*(?:\((单|双)\))?\s*\[([\d\-]+)节\]/);
-  if (!match) {
+  return parseTimeFieldsFromText(source);
+}
+
+/**
+ * 从文本提取周次+节次。
+ * 不能用「第一个数字串」当周次：会先吃到班级号（如计科2301班），
+ * 导致 weeks 非法/错乱，App 仍可能显示导入 54 门，但当前周课表几乎空白。
+ */
+function parseTimeFieldsFromText(text) {
+  const source = String(text || '').replace(/\u00a0/g, ' ');
+  if (!source.includes('节')) {
     return null;
   }
 
-  const weeksStr = match[1];
-  const oddEven = match[2] === '单' || match[2] === '双' ? match[2] : '';
-  const sectionRaw = match[3] || '';
-  if (!sectionRaw) {
+  const cleaned = source
+    .replace(
+      /[A-Za-z\u4e00-\u9fa5]*\d{2,}[A-Za-z\u4e00-\u9fa5\d\-]*班(?:级)?/g,
+      ' ',
+    )
+    .replace(/选课人数\s*\d+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 以 [xx节] 为锚点，向前取最近周次；周次每段限制 1-2 位
+  const anchored = cleaned.match(
+    /(\d{1,2}(?:\s*[-–—,]\s*\d{1,2})*(?:\s*,\s*\d{1,2}(?:\s*[-–—,]\s*\d{1,2})*)*)\s*(?:\((单|双|全部|周|[^\)]*)\))?\s*\[(\d{1,2}(?:\s*[-–—]\s*\d{1,2})*)节\]/,
+  );
+  if (!anchored) {
+    return null;
+  }
+
+  const weeksStr = (anchored[1] || '')
+    .replace(/[–—]/g, '-')
+    .replace(/\s+/g, '');
+  const oddEvenHint = anchored[2] || '';
+  const oddEven =
+    oddEvenHint === '单' || oddEvenHint === '双' ? oddEvenHint : '';
+  const sectionRaw = (anchored[3] || '')
+    .replace(/[–—]/g, '-')
+    .replace(/\s+/g, '');
+  if (!weeksStr || !sectionRaw) {
     return null;
   }
 
   const sectionParts = sectionRaw
     .split('-')
     .map((value) => parseInt(value, 10))
-    .filter((value) => !isNaN(value));
+    .filter((value) => !isNaN(value) && value >= 1 && value <= 24);
   if (!sectionParts.length) {
     return null;
   }
 
+  const weeks = parseWeeks(weeksStr, oddEven).filter(
+    (week) => week >= 1 && week <= 30,
+  );
+  if (!weeks.length) {
+    return null;
+  }
+
   return {
-    weeks: parseWeeks(weeksStr, oddEven),
+    weeks,
     startSection: sectionParts[0],
     endSection: sectionParts[sectionParts.length - 1],
   };
