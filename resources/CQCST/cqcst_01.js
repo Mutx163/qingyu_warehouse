@@ -7,7 +7,7 @@
  *
  * 实机验证（2026-07）：
  * - 从学生个人中心可成功 GET 课表 HTML
- * - 当前学期默认项为 selected 的 option（非列表第 0 项）
+ * - 默认自动使用当前学期（selected option），不弹学期选择/确认框\n * - 仅 URL 带 ?pickSemester=1 时才弹学期选择（调试用）
  * - 课表块结构：div.kbcontent + font[title=老师/上课地点] + 周次在班级 span 内
  */
 
@@ -387,6 +387,10 @@ function readSemesterSelect(doc) {
   return { labels, values, defaultIndex };
 }
 
+/**
+ * 快捷导入场景默认使用当前学期，不弹窗。
+ * 仅当 URL 带 ?pickSemester=1 时才让用户选择（手动调试用）。
+ */
 async function maybeSelectSemester(doc) {
   const semesterInfo = readSemesterSelect(doc);
   if (!semesterInfo) {
@@ -394,8 +398,19 @@ async function maybeSelectSemester(doc) {
   }
 
   const { labels, values, defaultIndex } = semesterInfo;
-  if (typeof window.AndroidBridgePromise?.showSingleSelection !== 'function') {
-    return { doc, changed: false, semesterLabel: labels[defaultIndex] };
+  const allowPick =
+    typeof location !== 'undefined' &&
+    /(?:^|[?&])pickSemester=1(?:&|$)/.test(location.search || '');
+
+  if (
+    !allowPick ||
+    typeof window.AndroidBridgePromise?.showSingleSelection !== 'function'
+  ) {
+    return {
+      doc,
+      changed: false,
+      semesterLabel: labels[defaultIndex],
+    };
   }
 
   const selectedIndex = await window.AndroidBridgePromise.showSingleSelection(
@@ -404,29 +419,31 @@ async function maybeSelectSemester(doc) {
     defaultIndex,
   );
 
-  if (
-    selectedIndex === null ||
-    selectedIndex === undefined ||
-    selectedIndex < 0
-  ) {
-    return { doc, cancelled: true };
+  // Bridge 可能返回 index 或选项文本
+  let resolvedIndex = defaultIndex;
+  if (typeof selectedIndex === 'number' && selectedIndex >= 0) {
+    resolvedIndex = selectedIndex;
+  } else if (typeof selectedIndex === 'string') {
+    const byValue = values.indexOf(selectedIndex);
+    const byLabel = labels.indexOf(selectedIndex);
+    if (byValue >= 0) resolvedIndex = byValue;
+    else if (byLabel >= 0) resolvedIndex = byLabel;
   }
 
-  // 仍是当前学期：直接用已拉取的 HTML，避免误 POST 到列表第 0 项
-  if (selectedIndex === defaultIndex) {
+  if (resolvedIndex === defaultIndex) {
     return {
       doc,
       changed: false,
-      semesterLabel: labels[selectedIndex],
+      semesterLabel: labels[resolvedIndex],
     };
   }
 
-  AndroidBridge.showToast('正在获取 [' + labels[selectedIndex] + '] 课表...');
-  const nextDoc = await fetchTimetableDoc(values[selectedIndex]);
+  AndroidBridge.showToast('正在获取 [' + labels[resolvedIndex] + '] 课表...');
+  const nextDoc = await fetchTimetableDoc(values[resolvedIndex]);
   return {
     doc: nextDoc,
     changed: true,
-    semesterLabel: labels[selectedIndex],
+    semesterLabel: labels[resolvedIndex],
   };
 }
 
@@ -450,19 +467,19 @@ async function runImportFlow() {
       return;
     }
 
-    const confirmed = await window.AndroidBridgePromise.showAlert(
-      '重庆城市科技 · 强智导入',
-      '将导入 ' +
-        courses.length +
-        ' 条课程记录' +
-        (semesterResult.semesterLabel
-          ? '（' + semesterResult.semesterLabel + '）'
-          : '') +
-        '，是否继续？',
-      '确认导入',
-    );
-    if (!confirmed) {
-      return;
+    // 快捷导入 / 宏回放：不要再弹确认框。
+    // App 在 macro 模式下若没有录制过 confirm 响应，会把 showAlert 解析成 false，
+    // 导致脚本提前退出且不调用 saveImportedCourses，最终超时「未返回课程数据」。
+    if (semesterResult.semesterLabel) {
+      AndroidBridge.showToast(
+        '正在导入 ' +
+          semesterResult.semesterLabel +
+          ' 共 ' +
+          courses.length +
+          ' 条课程...',
+      );
+    } else {
+      AndroidBridge.showToast('正在导入 ' + courses.length + ' 条课程...');
     }
 
     const saved = await window.AndroidBridgePromise.saveImportedCourses(
