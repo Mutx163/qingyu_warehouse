@@ -438,7 +438,7 @@ async function maybeSelectSemester(doc) {
     };
   }
 
-  AndroidBridge.showToast('正在获取 [' + labels[resolvedIndex] + '] 课表...');
+  // 过程中不再 toast，进度由 App 快捷导入 UI 展示。
   const nextDoc = await fetchTimetableDoc(values[resolvedIndex]);
   return {
     doc: nextDoc,
@@ -451,8 +451,6 @@ async function runImportFlow() {
   ensureBrowserTestBridge();
 
   try {
-    AndroidBridge.showToast('正在通过接口获取课表...');
-
     let doc = await fetchTimetableDoc();
     const semesterResult = await maybeSelectSemester(doc);
     if (semesterResult.cancelled) {
@@ -467,20 +465,8 @@ async function runImportFlow() {
       return;
     }
 
-    // 快捷导入 / 宏回放：不要再弹确认框。
-    // App 在 macro 模式下若没有录制过 confirm 响应，会把 showAlert 解析成 false，
-    // 导致脚本提前退出且不调用 saveImportedCourses，最终超时「未返回课程数据」。
-    if (semesterResult.semesterLabel) {
-      AndroidBridge.showToast(
-        '正在导入 ' +
-          semesterResult.semesterLabel +
-          ' 共 ' +
-          courses.length +
-          ' 条课程...',
-      );
-    } else {
-      AndroidBridge.showToast('正在导入 ' + courses.length + ' 条课程...');
-    }
+    // 不弹「正在导入…」进度 toast，避免与 App 完成弹窗叠层。
+    // 也不再弹确认框（宏回放无录制 confirm 时会误当成取消）。
 
     const saved = await window.AndroidBridgePromise.saveImportedCourses(
       JSON.stringify(courses),
