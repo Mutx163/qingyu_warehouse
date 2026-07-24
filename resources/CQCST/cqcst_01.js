@@ -490,7 +490,7 @@ async function runImportFlow() {
       return;
     }
 
-    AndroidBridge.showToast('成功导入 ' + courses.length + ' 条课程');
+    // 成功结果由 App 完成弹窗展示，这里不再 toast，避免与「导入完成」sheet 叠两层。
     AndroidBridge.notifyTaskCompletion();
   } catch (error) {
     const message = error && error.message ? error.message : String(error);
