@@ -7,8 +7,12 @@
  *
  * 实机验证（2026-07）：
  * - 从学生个人中心可成功 GET 课表 HTML
- * - 默认自动使用当前学期（selected option），不弹学期选择/确认框\n * - 仅 URL 带 ?pickSemester=1 时才弹学期选择（调试用）
+ * - 默认自动使用当前学期（selected option），不弹学期选择/确认框
+ * - 仅 URL 带 ?pickSemester=1 时才弹学期选择（调试用）
  * - 课表块结构：div.kbcontent + font[title=老师/上课地点] + 周次在班级 span 内
+ *
+ * 注意：fetch + DOMParser 得到的是离线 DOM，innerText 往往不按 <br> 换行。
+ * 课名/字段解析必须优先用 textContent + 按 <br> 分行，不能依赖 innerText 首行。
  */
 
 const XSKB_LIST_PATH = '/cqdxcskjxy_jsxsd/xskb/xskb_list.do';
@@ -152,16 +156,57 @@ function pushCourse(courses, courseSet, course) {
 }
 
 function extractCourseName(blockRoot) {
+  const cleanCandidate = (raw) =>
+    String(raw || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\[[^\]]*\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const looksContaminated = (candidate) => {
+    if (!candidate) return true;
+    // 混入节次/班级/选课等元数据，或异常过长
+    if (/\[.*节\]/.test(candidate) || candidate.includes('选课人数')) {
+      return true;
+    }
+    if (candidate.includes('班') && candidate.length > 12) {
+      return true;
+    }
+    if (candidate.length > 40) {
+      return true;
+    }
+    return false;
+  };
+
+  // 1) 直接文本节点（正常强智结构：课名在第一个 text node）
   for (const node of blockRoot.childNodes) {
     if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-      return node.textContent
-        .trim()
-        .replace(/\[[^\]]*\]/g, '')
-        .trim();
+      const fromTextNode = cleanCandidate(node.textContent);
+      if (fromTextNode && !looksContaminated(fromTextNode)) {
+        return fromTextNode;
+      }
+      break;
     }
   }
-  const firstLine = (blockRoot.innerText || '').split('\n')[0] || '';
-  return firstLine.replace(/\[[^\]]*\]/g, '').trim();
+
+  // 2) 按 <br> 取第一行（离线 DOM 下 innerText 不可靠）
+  const html = blockRoot.innerHTML || '';
+  const firstHtmlLine = cleanCandidate(
+    html.split(/<br\s*\/?>/i)[0].replace(/<[^>]+>/g, ' '),
+  );
+  if (firstHtmlLine && !looksContaminated(firstHtmlLine)) {
+    return firstHtmlLine;
+  }
+
+  // 3) 最后兜底：整段 textContent 截到时间串之前
+  const fullText = cleanCandidate(blockRoot.textContent || blockRoot.innerText || '');
+  const timeMatch = fullText.match(
+    /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
+  );
+  if (timeMatch && typeof timeMatch.index === 'number' && timeMatch.index > 0) {
+    return cleanCandidate(fullText.slice(0, timeMatch.index));
+  }
+  return firstHtmlLine || fullText;
 }
 
 function parseKbcontentBlock(htmlBlock, day, courses, courseSet) {
@@ -173,30 +218,148 @@ function parseKbcontentBlock(htmlBlock, day, courses, courseSet) {
 
   const name = extractCourseName(temp);
   const teacherFont = findFontByTitle(temp, ['老师', '教师']);
-  const positionFont = findFontByTitle(temp, ['上课地点', '教室']);
+  const positionFont = findFontByTitle(temp, ['上课地点', '教室', '教学楼']);
   const classFont = findFontByTitle(temp, ['班级']);
   const weekFont = findFontByTitle(temp, ['周次(节次)']);
 
-  const teacher = teacherFont ? teacherFont.innerText.trim() : '未知';
-  const position = positionFont ? positionFont.innerText.trim() : '待定';
+  // 离线 DOM 用 textContent，避免 innerText 在未布局文档中异常
+  const teacher = teacherFont
+    ? (teacherFont.textContent || teacherFont.innerText || '').trim()
+    : '未知';
+  const position = positionFont
+    ? (positionFont.textContent || positionFont.innerText || '').trim()
+    : '待定';
 
   // 重庆城市科技：周次/节次通常嵌在「班级」font 的 span 文本中
   let timeText = '';
   if (weekFont) {
-    timeText = weekFont.innerText || '';
+    timeText = weekFont.textContent || weekFont.innerText || '';
   } else if (classFont) {
-    timeText = classFont.innerText || '';
+    timeText = classFont.textContent || classFont.innerText || '';
   } else {
-    timeText = temp.innerText || '';
+    timeText = temp.textContent || temp.innerText || '';
   }
 
   const parsedTime = parseWeekAndSection(timeText);
   if (!parsedTime) {
+    // font 取时间失败：按 <br> 文本行回退（旧版 innerText 路径）
+    const fallbackLines = String(htmlBlock || '')
+      .split(/<br\s*\/?>/i)
+      .map((line) =>
+        line
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\u00a0/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      )
+      .filter(Boolean);
+    if (fallbackLines.length) {
+      // 复用 parseTextCell 的块逻辑：构造伪 cell 太重，直接内联最小回退
+      const joined = fallbackLines.join('\n');
+      const timeParsed = parseWeekAndSection(joined);
+      if (timeParsed && timeParsed.weeks.length) {
+        let fallbackName = (fallbackLines[0] || '')
+          .replace(/\[[^\]]*\]/g, '')
+          .trim();
+        if (fallbackLines.length === 1) {
+          const timeMatch = fallbackLines[0].match(
+            /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
+          );
+          if (timeMatch && typeof timeMatch.index === 'number') {
+            fallbackName = fallbackLines[0]
+              .slice(0, timeMatch.index)
+              .replace(/\[[^\]]*\]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+        }
+        let fallbackTeacher = '未知';
+        let fallbackPosition = '待定';
+        const timeLineIndex = fallbackLines.findIndex((line) =>
+          line.includes('节'),
+        );
+        if (timeLineIndex > 0) {
+          for (let index = 1; index < timeLineIndex; index++) {
+            const line = fallbackLines[index];
+            if (/^\[[^\]]+\]$/.test(line)) continue;
+            if (line.includes('班') || line.includes('选课人数')) continue;
+            if (line.includes('节')) continue;
+            fallbackTeacher = line;
+          }
+        }
+        if (timeLineIndex >= 0 && timeLineIndex + 1 < fallbackLines.length) {
+          const maybePosition = fallbackLines[timeLineIndex + 1];
+          if (
+            maybePosition &&
+            !maybePosition.includes('节') &&
+            !maybePosition.includes('班')
+          ) {
+            fallbackPosition = maybePosition;
+          }
+        }
+        if (fallbackName) {
+          pushCourse(courses, courseSet, {
+            name: fallbackName,
+            teacher: fallbackTeacher,
+            position: fallbackPosition,
+            day,
+            startSection: timeParsed.startSection,
+            endSection: timeParsed.endSection,
+            weeks: timeParsed.weeks,
+          });
+        }
+      }
+    }
+    return;
+  }
+
+  // 若课名仍混入老师/地点（无 <br> 粘连时），剥离已识别字段
+  let cleanName = (name || '').trim();
+  // 课名异常：含节次/过长 → 强制按 <br> 第一行重取
+  if (
+    !cleanName ||
+    cleanName.includes('节') ||
+    cleanName.includes('选课人数') ||
+    cleanName.length > 40
+  ) {
+    const firstLine = String(htmlBlock || '')
+      .split(/<br\s*\/?>/i)[0]
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\[[^\]]*\]/g, ' ')
+      .trim();
+    if (firstLine && firstLine.length < cleanName.length) {
+      cleanName = firstLine;
+    }
+  }
+  // 剥离已识别的老师/地点（可在中间或末尾）
+  if (teacher && teacher !== '未知' && cleanName.includes(teacher)) {
+    cleanName = cleanName.split(teacher)[0].trim();
+  }
+  if (position && position !== '待定' && cleanName.includes(position)) {
+    cleanName = cleanName.split(position)[0].trim();
+  }
+  // 剥离时间串及之后内容
+  cleanName = cleanName
+    .replace(/[\d,\-]+\s*(?:\((?:单|双|全部|周)\))?\s*\[[\d\-]+节\].*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  // 剥离「计科2301班 / xxx班 选课人数」一类尾巴
+  const classMetaIndex = cleanName.search(
+    /[\u4e00-\u9fa5A-Za-z0-9]*\d{2,}[\u4e00-\u9fa5A-Za-z0-9]*班/,
+  );
+  if (classMetaIndex > 0) {
+    cleanName = cleanName.slice(0, classMetaIndex).trim();
+  } else if (cleanName.includes('选课人数')) {
+    cleanName = cleanName.split('选课人数')[0].trim();
+  }
+  if (!cleanName) {
     return;
   }
 
   pushCourse(courses, courseSet, {
-    name,
+    name: cleanName,
     teacher,
     position,
     day,
@@ -207,26 +370,87 @@ function parseKbcontentBlock(htmlBlock, day, courses, courseSet) {
 }
 
 function parseTextCell(cell, day, courses, courseSet) {
-  const rawText = (cell.innerText || '').replace(/\u00a0/g, ' ').trim();
-  if (!rawText || !rawText.includes('节')) {
+  // 优先用 innerHTML 按 <br> 分行。DOMParser 离线文档的 innerText 常无换行，
+  // 整格会变成 lines[0]，导致课名塞进老师/班级/地点。
+  const cellHtml = (cell.innerHTML || '').replace(/\u00a0/g, ' ');
+  const hasSection =
+    cellHtml.includes('节') ||
+    (cell.textContent || '').includes('节') ||
+    (cell.innerText || '').includes('节');
+  if (!hasSection) {
     return;
   }
-  rawText.split(/-{5,}/).forEach((block) => {
-    const lines = block
-      .split(/\r?\n/)
-      .map((line) => line.trim())
+
+  const htmlBlocks = cellHtml.split(/-{5,}/);
+  htmlBlocks.forEach((blockHtml) => {
+    let lines = blockHtml
+      .split(/<br\s*\/?>/i)
+      .map((line) =>
+        line
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      )
       .filter(Boolean);
+
+    // 无 <br> 时再尝试 textContent / innerText 的真实换行
+    if (lines.length < 2) {
+      const rawText = (
+        cell.textContent ||
+        cell.innerText ||
+        ''
+      )
+        .replace(/\u00a0/g, ' ')
+        .trim();
+      const textBlocks = rawText.split(/-{5,}/);
+      // 当前块对应的文本：粗略用整段回退
+      const textBlock = textBlocks.length === htmlBlocks.length
+        ? textBlocks[htmlBlocks.indexOf(blockHtml)] || rawText
+        : rawText;
+      lines = textBlock
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (lines.length < 3) {
+        const spaced = textBlock
+          .split(/\s{2,}/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (spaced.length > lines.length) {
+          lines = spaced;
+        }
+      }
+    }
+
     if (!lines.length) {
       return;
     }
-    const name = lines[0].replace(/\[[^\]]*\]/g, '').trim();
+
     const parsedTime = parseWeekAndSection(lines.join('\n'));
     if (!parsedTime) {
       return;
     }
+
+    let name = (lines[0] || '').replace(/\[[^\]]*\]/g, '').trim();
+    // 单行粘连：课名取时间串之前
+    if (lines.length === 1) {
+      const timeMatch = lines[0].match(
+        /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
+      );
+      if (timeMatch && typeof timeMatch.index === 'number') {
+        name = lines[0]
+          .slice(0, timeMatch.index)
+          .replace(/\[[^\]]*\]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+    }
+
     let teacher = '未知';
     let position = '待定';
-    const timeLineIndex = lines.findIndex((line) => line.includes('节'));
+    const timeLineIndex = lines.findIndex(
+      (line) => line.includes('节') || parseWeekAndSection(line),
+    );
     if (timeLineIndex > 0) {
       for (let index = 1; index < timeLineIndex; index++) {
         const line = lines[index];
@@ -236,15 +460,34 @@ function parseTextCell(cell, day, courses, courseSet) {
         if (line.includes('班') || line.includes('选课人数')) {
           continue;
         }
+        if (line.includes('节')) {
+          continue;
+        }
         teacher = line;
       }
     }
     if (timeLineIndex >= 0 && timeLineIndex + 1 < lines.length) {
       const maybePosition = lines[timeLineIndex + 1];
-      if (maybePosition && !maybePosition.includes('节')) {
+      if (
+        maybePosition &&
+        !maybePosition.includes('节') &&
+        !maybePosition.includes('班') &&
+        !maybePosition.includes('选课人数')
+      ) {
         position = maybePosition;
       }
     }
+
+    if (teacher && teacher !== '未知' && name.endsWith(teacher)) {
+      name = name.slice(0, -teacher.length).trim();
+    }
+    if (position && position !== '待定' && name.endsWith(position)) {
+      name = name.slice(0, -position.length).trim();
+    }
+    if (!name) {
+      return;
+    }
+
     pushCourse(courses, courseSet, {
       name,
       teacher,
@@ -264,7 +507,9 @@ function extractCoursesFromDoc(doc) {
     doc.querySelector('table.table_border') ||
     doc.querySelector('.table_border') ||
     Array.from(doc.querySelectorAll('table')).find((item) =>
-      /星期|周一/.test(item.innerText || ''),
+      /星期|周一/.test(
+        item.textContent || item.innerText || '',
+      ),
     );
 
   if (!table) {
