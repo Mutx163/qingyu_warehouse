@@ -15,6 +15,38 @@
  * 课名/字段解析必须优先用 textContent + 按 <br> 分行，不能依赖 innerText 首行。
  */
 
+/**
+ * 若当前页已经是「学期理论课表」且表格有课，直接用当前 document 解析。
+ * 这与页面旧版成功路径一致，可避免 fetch 默认学期拿回空表。
+ */
+function tryExtractCoursesFromLivePage() {
+  try {
+    if (typeof document === 'undefined') {
+      return [];
+    }
+    const table =
+      document.getElementById('kbtable') ||
+      document.getElementById('timetable') ||
+      document.querySelector('table.table_border') ||
+      document.querySelector('.table_border');
+    if (!table) {
+      return [];
+    }
+    const tableText = table.innerText || table.textContent || '';
+    if (!/星期|周一/.test(tableText)) {
+      return [];
+    }
+    // 有「节」字才像真有课；空课表页不走 live 路径
+    if (!tableText.includes('节')) {
+      return [];
+    }
+    return extractCoursesFromDoc(document);
+  } catch (error) {
+    console.warn('[CQCST] live page parse failed', error);
+    return [];
+  }
+}
+
 const XSKB_LIST_PATH = '/cqdxcskjxy_jsxsd/xskb/xskb_list.do';
 
 function ensureBrowserTestBridge() {
@@ -89,9 +121,13 @@ function parseWeeks(weeksStr, oddEvenHint) {
  */
 function parseWeekAndSection(text) {
   const source = String(text || '').replace(/\u00a0/g, ' ');
-  const match = source.match(
-    /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
-  );
+  // 与页面旧版一致：中间允许任意杂质（班级名、空格等）
+  // 例如：1-16(全部)[01-02节] / 2-17(周)[05-06节] / 1-8(单)xxx[01-02节]
+  const match =
+    source.match(
+      /([\d,\-]+)\s*(?:\((单|双|全部|周|.*?)\))?\s*.*?\[([\d\-]+)节\]/,
+    ) ||
+    source.match(/([\d,\-]+)\s*(?:\((单|双)\))?\s*\[([\d\-]+)节\]/);
   if (!match) {
     return null;
   }
@@ -696,15 +732,34 @@ async function runImportFlow() {
   ensureBrowserTestBridge();
 
   try {
-    let doc = await fetchTimetableDoc();
-    const semesterResult = await maybeSelectSemester(doc);
-    if (semesterResult.cancelled) {
-      AndroidBridge.showToast('已取消导入');
-      return;
-    }
-    doc = semesterResult.doc;
+    // 1) 当前页已是课表且有数据 → 与页面旧版同一路径（日志已证明可解析 54 门）
+    let courses = tryExtractCoursesFromLivePage();
 
-    const courses = extractCoursesFromDoc(doc);
+    // 2) 否则 fetch 课表页（任意教务页快捷导入）
+    if (!courses.length) {
+      let doc = await fetchTimetableDoc();
+      const semesterResult = await maybeSelectSemester(doc);
+      if (semesterResult.cancelled) {
+        AndroidBridge.showToast('已取消导入');
+        return;
+      }
+      doc = semesterResult.doc;
+      courses = extractCoursesFromDoc(doc);
+
+      // 3) GET 默认学期可能空表：用页面 selected 学期再 POST 一次
+      if (!courses.length) {
+        const semesterInfo = readSemesterSelect(doc);
+        if (
+          semesterInfo &&
+          semesterInfo.values[semesterInfo.defaultIndex]
+        ) {
+          const semesterValue = semesterInfo.values[semesterInfo.defaultIndex];
+          const semesterDoc = await fetchTimetableDoc(semesterValue);
+          courses = extractCoursesFromDoc(semesterDoc);
+        }
+      }
+    }
+
     if (!courses.length) {
       AndroidBridge.showToast('未解析到课程，请换学期试试或确认本学期有课');
       return;
