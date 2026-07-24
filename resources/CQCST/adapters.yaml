@@ -1,17 +1,9 @@
 # resources/CQCST/adapters.yaml
 adapters:
   - adapter_id: "CQCST_01"
-    adapter_name: "重庆城市科技学院强智适配（API 新版）"
+    adapter_name: "重庆城市科技学院强智适配"
     category: "BACHELOR_AND_ASSOCIATE"
     asset_js_path: "cqcst_01.js"
     import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/"
     maintainer: "Mutx163"
-    description: "今日新版：登录后任意教务页 fetch xskb_list.do 解析课表，无需先打开课表页。若导入异常可改选「页面旧版」对比。"
-
-  - adapter_id: "CQCST_02"
-    adapter_name: "重庆城市科技学院强智适配（页面旧版）"
-    category: "BACHELOR_AND_ASSOCIATE"
-    asset_js_path: "cqcst_02.js"
-    import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/"
-    maintainer: "Mutx163"
-    description: "改版前脚本：需先进入「学期理论课表」页面再导入（解析当前页 kbtable）。用于对照排查 API 新版问题。"
+    description: "强智教务导入：登录进入教务后可在任意页面执行；当前已打开学期理论课表时直接解析本页，否则 fetch xskb_list.do。"
