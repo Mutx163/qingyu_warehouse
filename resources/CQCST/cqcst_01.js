@@ -40,11 +40,152 @@ function tryExtractCoursesFromLivePage() {
     if (!tableText.includes('节')) {
       return [];
     }
-    return extractCoursesFromDoc(document);
+    // 关键：live 页必须用旧版 innerText 算法。
+    // extractCoursesFromDoc 优先走 kbcontent HTML，很多格会解析失败且不再回退文本，
+    // 实测会丢掉大半课程；旧版 CQCST_02 整表 innerText 可稳定拿到全部课。
+    return extractCoursesFromLiveTableLikeLegacy(table);
   } catch (error) {
     console.warn('[CQCST] live page parse failed', error);
     return [];
   }
+}
+
+/**
+ * 页面旧版（CQCST_02）同款算法：按 cell.innerText 分行解析。
+ * 仅用于已渲染的 live document（innerText 有正常换行）。
+ */
+function extractCoursesFromLiveTableLikeLegacy(table) {
+  const courses = [];
+  const courseSet = new Set();
+  const rows = table.querySelectorAll('tr');
+
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+    const cells = rows[rowIndex].querySelectorAll('td, th');
+    for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
+      const day = 7 - (cells.length - 1 - cellIndex);
+      if (day < 1 || day > 7) {
+        continue;
+      }
+
+      const cell = cells[cellIndex];
+      const blocks = (cell.innerText || '')
+        .split(/-{5,}/)
+        .map((text) => text.trim())
+        .filter(Boolean);
+
+      for (const block of blocks) {
+        if (!block || block === '\u00a0') {
+          continue;
+        }
+
+        let lines = block
+          .split(/\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (lines.length < 4) {
+          lines = block
+            .split(/\s+/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+        }
+        if (lines.length < 3) {
+          continue;
+        }
+
+        // 与旧版相同的时间正则（允许中间杂质）
+        const timeRegex = /([\d\-,]+)(?:\((单|双|.*?)\))?.*?\[([\d\-]+)节\]/;
+        const timeLineIndex = lines.findIndex((line) => timeRegex.test(line));
+        if (timeLineIndex === -1) {
+          continue;
+        }
+
+        const match = lines[timeLineIndex].match(timeRegex);
+        if (!match) {
+          continue;
+        }
+
+        const name = lines[0].replace(/\[.*?\]/g, '').trim();
+        if (!name) {
+          continue;
+        }
+
+        const teacher = lines[1] || '未知';
+        const weeksStr = match[1];
+        const oddEven = match[2];
+        const sectionsStr = match[3];
+        const position =
+          timeLineIndex + 1 < lines.length
+            ? lines[timeLineIndex + 1]
+            : '未知地点';
+
+        const weeks = [];
+        weeksStr.split(',').forEach((weekPart) => {
+          const part = weekPart.trim();
+          if (!part) {
+            return;
+          }
+          if (part.includes('-')) {
+            const [startRaw, endRaw] = part.split('-');
+            const start = parseInt(startRaw, 10);
+            const end = parseInt(endRaw, 10);
+            if (isNaN(start) || isNaN(end)) {
+              return;
+            }
+            for (let week = start; week <= end; week++) {
+              if (oddEven === '单' && week % 2 === 0) continue;
+              if (oddEven === '双' && week % 2 !== 0) continue;
+              weeks.push(week);
+            }
+            return;
+          }
+          const week = parseInt(part, 10);
+          if (!isNaN(week)) {
+            if (oddEven === '单' && week % 2 === 0) return;
+            if (oddEven === '双' && week % 2 !== 0) return;
+            weeks.push(week);
+          }
+        });
+
+        if (!weeks.length) {
+          continue;
+        }
+
+        const sectionParts = sectionsStr.split('-');
+        const startSection = parseInt(sectionParts[0], 10);
+        const endSection = parseInt(
+          sectionParts[sectionParts.length - 1],
+          10,
+        );
+        if (isNaN(startSection) || isNaN(endSection)) {
+          continue;
+        }
+
+        // 与旧版相同的去重键（不含 teacher/position，避免同课被拆成多条）
+        const uniqueKey = [
+          name,
+          day,
+          startSection,
+          endSection,
+          weeks.join(','),
+        ].join('-');
+        if (courseSet.has(uniqueKey)) {
+          continue;
+        }
+        courseSet.add(uniqueKey);
+        courses.push({
+          name,
+          teacher,
+          position,
+          day,
+          startSection,
+          endSection,
+          weeks,
+        });
+      }
+    }
+  }
+
+  return courses;
 }
 
 const XSKB_LIST_PATH = '/cqdxcskjxy_jsxsd/xskb/xskb_list.do';
@@ -569,17 +710,17 @@ function extractCoursesFromDoc(doc) {
       const kbBlocks = cell.querySelectorAll('div.kbcontent');
       const beforeCount = courses.length;
 
-      if (kbBlocks.length) {
+      // 优先文本解析（与页面旧版一致，覆盖率高）。
+      // 若先走 kbcontent 且只解析到部分块，会跳过文本回退，导致丢大半课。
+      parseTextCell(cell, day, courses, courseSet);
+
+      if (courses.length === beforeCount && kbBlocks.length) {
         kbBlocks.forEach((div) => {
           const rawHtml = (div.innerHTML || '').trim();
           rawHtml.split(/-{5,}/).forEach((block) => {
             parseKbcontentBlock(block, day, courses, courseSet);
           });
         });
-      }
-
-      if (courses.length === beforeCount) {
-        parseTextCell(cell, day, courses, courseSet);
       }
     }
   }
