@@ -98,6 +98,11 @@ schools:
     initial: "M"
     resource_folder: "MMPT"
 
+  - id: "SWJTU"
+    name: "西南交通大学"
+    initial: "X"
+    resource_folder: "SWJTU"
+
   - id: "SXGCXY"
     name: "山西工程职业学院"
     initial: "S"
@@ -707,3 +712,8 @@ schools:
     name: "扬州大学"
     initial: "Y"
     resource_folder: "YZU"   
+
+  - id: "XUST"
+    name: "西安科技大学"
+    initial: "X"
+    resource_folder: "XUST"       
