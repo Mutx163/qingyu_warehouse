@@ -10,12 +10,15 @@ import shlex
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from warehouse_upstream_compat import (
     ValidationReport,
+    apply_v2_bridge_shim,
+    find_upstream_script_updates,
     format_report,
+    parse_adapters_asset_paths,
     parse_index_maps,
     validate_adapter_folder,
     validate_sync_plan,
@@ -36,6 +39,22 @@ class SyncPlan:
     id_to_folder: dict[str, str]
     index_changed: bool
     resource_paths: list[str]
+    refresh_schools: list[str] = field(default_factory=list)
+
+    @property
+    def validated_schools(self) -> list[str]:
+        """预检/落盘校验需要覆盖的学校集合。"""
+        return self.upstream_only + self.refresh_schools
+
+    @property
+    def touched_folders(self) -> list[str]:
+        """本次实际落盘的资源目录（去重、保持顺序）。"""
+        folders: list[str] = []
+        for school_id in self.validated_schools:
+            folder = self.id_to_folder.get(school_id)
+            if folder and folder not in folders:
+                folders.append(folder)
+        return folders
 
 
 def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -103,11 +122,11 @@ def fetch_remotes(warehouse_dir: Path) -> None:
     run_git(["fetch", UPSTREAM_REMOTE, UPSTREAM_BRANCH], warehouse_dir)
 
 
-def build_plan(warehouse_dir: Path) -> SyncPlan:
+def build_plan(warehouse_dir: Path, *, refresh_existing: bool = False) -> SyncPlan:
     local_yaml = (warehouse_dir / "index" / "root_index.yaml").read_text(encoding="utf-8")
     upstream_yaml = read_upstream_index(warehouse_dir)
 
-    local_ids, _local_map = parse_index_maps(local_yaml)
+    local_ids, local_map = parse_index_maps(local_yaml)
     upstream_ids, upstream_map = parse_index_maps(upstream_yaml)
 
     upstream_only = sorted(upstream_ids - local_ids)
@@ -124,12 +143,28 @@ def build_plan(warehouse_dir: Path) -> SyncPlan:
             raise RuntimeError(f"Missing resource_folder for upstream school id {school_id}")
         resource_paths.append(f"resources/{folder}")
 
+    refresh_schools: list[str] = []
+    if refresh_existing:
+        changed = find_upstream_script_updates(
+            warehouse_dir,
+            local_ids & upstream_ids,
+            {**upstream_map, **local_map},
+            UPSTREAM_REF,
+        )
+        refresh_schools = [school_id for school_id, _folder in changed]
+        for school_id in refresh_schools:
+            folder = local_map.get(school_id) or upstream_map.get(school_id)
+            path = f"resources/{folder}" if folder else None
+            if path and path not in resource_paths:
+                resource_paths.append(path)
+
     return SyncPlan(
         upstream_only=upstream_only,
         local_only=local_only,
         id_to_folder=upstream_map,
         index_changed=index_changed,
         resource_paths=resource_paths,
+        refresh_schools=refresh_schools,
     )
 
 
@@ -179,15 +214,15 @@ def run_validation(
         warehouse_dir=warehouse_dir,
         upstream_ref=UPSTREAM_REF,
         validate_scripts=not pre_checkout,
-        school_ids=plan.upstream_only if not pre_checkout else plan.upstream_only,
+        school_ids=plan.validated_schools,
         id_to_folder=plan.id_to_folder,
     )
 
-    if pre_checkout and plan.upstream_only:
+    if pre_checkout and plan.validated_schools:
         report.merge(
             validate_upstream_scripts_in_staging(
                 warehouse_dir,
-                plan.upstream_only,
+                plan.validated_schools,
                 plan.id_to_folder,
             )
         )
@@ -207,6 +242,29 @@ def checkout_upstream_paths(warehouse_dir: Path, paths: list[str]) -> None:
     run_git(["checkout", UPSTREAM_REF, "--", *paths], warehouse_dir)
 
 
+def apply_v2_bridge_shims_to_folders(warehouse_dir: Path, folders: list[str]) -> int:
+    """对本次落盘的适配脚本前置 v2->v1 兼容垫片，返回修改文件数。
+
+    必须在 post-checkout 校验之前调用，保证校验与提交的都是最终字节。
+    """
+    applied = 0
+    for folder in folders:
+        rel_folder = warehouse_dir / "resources" / folder
+        adapters_path = rel_folder / "adapters.yaml"
+        if not adapters_path.is_file():
+            continue
+        assets = parse_adapters_asset_paths(adapters_path.read_text(encoding="utf-8"))
+        for asset in assets:
+            script_path = rel_folder / asset
+            if not script_path.is_file():
+                continue
+            new_text, did_apply = apply_v2_bridge_shim(script_path.read_text(encoding="utf-8"))
+            if did_apply:
+                script_path.write_text(new_text, encoding="utf-8", newline="\n")
+                applied += 1
+    return applied
+
+
 def ensure_git_identity(warehouse_dir: Path) -> None:
     name = os.environ.get("GIT_AUTHOR_NAME", "github-actions[bot]")
     email = os.environ.get(
@@ -222,6 +280,7 @@ def commit_if_needed(
     school_ids: list[str],
     staged_paths: list[str],
     dry_run: bool,
+    refresh_count: int = 0,
 ) -> str | None:
     if not staged_paths:
         return None
@@ -241,7 +300,12 @@ def commit_if_needed(
     message = (
         "sync: 从上游同步教务适配更新\n\n"
         f"新增学校: {names if school_ids else '无（仅索引/脚本更新）'}\n"
-        "来源: shiguang_warehouse/main"
+        + (
+            f"刷新既有学校: {refresh_count} 个（已自动前置 v2 桥接兼容垫片）\n"
+            if refresh_count
+            else ""
+        )
+        + "来源: shiguang_warehouse/main"
     )
     run_git(["add", "--", *staged_paths], warehouse_dir)
     run_git(["commit", "-m", message], warehouse_dir)
@@ -286,6 +350,11 @@ def main() -> int:
         action="store_true",
         help="Proceed when only warnings remain (blocking issues still abort)",
     )
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="同时同步上游已修改的既有学校脚本；落盘前自动前置 v2 桥接兼容垫片",
+    )
     args = parser.parse_args()
 
     warehouse_dir = args.warehouse_dir.resolve()
@@ -303,7 +372,7 @@ def main() -> int:
     fetch_remotes(warehouse_dir)
 
     print("[3/6] Build sync plan")
-    plan = build_plan(warehouse_dir)
+    plan = build_plan(warehouse_dir, refresh_existing=args.refresh_existing)
     upstream_yaml = read_upstream_index(warehouse_dir)
     school_names = lookup_names(upstream_yaml, plan.upstream_only)
 
@@ -312,10 +381,13 @@ def main() -> int:
     else:
         print(
             f"Plan: index_changed={plan.index_changed}, "
-            f"new_schools={len(plan.upstream_only)}"
+            f"new_schools={len(plan.upstream_only)}, "
+            f"refresh_existing={len(plan.refresh_schools)}"
         )
         for school_id in plan.upstream_only:
             print(f"  + {school_id} {school_names.get(school_id, '')}")
+        for school_id in plan.refresh_schools:
+            print(f"  ~ {school_id} (refresh existing scripts)")
 
     print("[4/6] Pre-sync compatibility validation")
     pre_report = run_validation(warehouse_dir, plan, pre_checkout=True)
@@ -335,6 +407,9 @@ def main() -> int:
         else:
             print("[5/6] Checkout upstream resources")
             checkout_upstream_paths(warehouse_dir, plan.resource_paths)
+
+            shimmed = apply_v2_bridge_shims_to_folders(warehouse_dir, plan.touched_folders)
+            print(f"[5.5/6] Applied v2 bridge compat shim to {shimmed} script(s)")
 
             print("[6/6] Post-checkout validation + commit/push")
             post_report = run_validation(warehouse_dir, plan, pre_checkout=False)
@@ -356,6 +431,7 @@ def main() -> int:
         plan.upstream_only,
         plan.resource_paths,
         args.dry_run,
+        refresh_count=len(plan.refresh_schools),
     )
     push_if_needed(warehouse_dir, args.dry_run, args.no_push, committed)
 

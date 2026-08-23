@@ -35,6 +35,30 @@ SUPPORTED_ANDROID_BRIDGE_PROMISE = frozenset(
     }
 )
 
+# --- qingyu v2 桥接兼容垫片 ---------------------------------------------
+# 上游 shiguang_warehouse 自 2026-08-23 起将适配协议升级至 v2：桥接对象由
+# AndroidBridge* 统一更名为 window.shiguangBridge*（方法集合不变）。
+# 存量旧版 App 只注入 AndroidBridge*，因此同步落盘前需为含 v2 调用的脚本
+# 自动前置一段「新名字 -> 旧实现」的幂等垫片，保证旧版无需升级即可继续使用。
+SHIM_MARKER = "/* qingyu-compat-shim v2:auto-generated, do not edit */"
+V2_BRIDGE_PATTERN = re.compile(r"\bshiguang(?:Bridge|BridgePromise)\b")
+V2_SHIM_BODY = """(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+"""
+
+
+def apply_v2_bridge_shim(script_text: str) -> tuple[str, bool]:
+    """为含 v2 桥接调用的脚本前置兼容垫片。返回 (处理后文本, 是否修改)。"""
+    if SHIM_MARKER in script_text:
+        return script_text, False
+    if not V2_BRIDGE_PATTERN.search(script_text):
+        return script_text, False
+    return f"{SHIM_MARKER}\n{V2_SHIM_BODY}\n{script_text}", True
+
+
 UNSUPPORTED_BRIDGE_MARKERS: tuple[tuple[str, str], ...] = (
     (
         r"AndroidBridgePromise\.showConfirmDialog\s*\(",
@@ -187,6 +211,15 @@ def _parse_adapters_yaml(text: str) -> list[dict[str, str]]:
     return adapters
 
 
+def parse_adapters_asset_paths(yaml_text: str) -> list[str]:
+    """从 adapters.yaml 文本中提取全部 asset_js_path（按声明顺序）。"""
+    return [
+        adapter["asset_js_path"]
+        for adapter in _parse_adapters_yaml(yaml_text)
+        if adapter.get("asset_js_path")
+    ]
+
+
 def validate_adapter_folder(folder: Path, school_id: str) -> ValidationReport:
     report = ValidationReport()
     adapters_path = folder / "adapters.yaml"
@@ -256,8 +289,12 @@ def validate_adapter_script(script_path: Path, school_id: str, adapter_id: str) 
                 )
             )
 
+    # v1 与 v2（window.shiguangBridge*）两套桥名都要纳入方法白名单校验，
+    # 否则 v2 脚本调用未实现方法会被漏判。
     bridge_calls = set(re.findall(r"AndroidBridgePromise\.(\w+)", text))
     bridge_calls.update(re.findall(r"AndroidBridge\.(\w+)", text))
+    bridge_calls.update(re.findall(r"\bshiguangBridgePromise\.(\w+)", text))
+    bridge_calls.update(re.findall(r"\bshiguangBridge\.(\w+)", text))
 
     for method in bridge_calls:
         if method in SUPPORTED_ANDROID_BRIDGE or method in SUPPORTED_ANDROID_BRIDGE_PROMISE:

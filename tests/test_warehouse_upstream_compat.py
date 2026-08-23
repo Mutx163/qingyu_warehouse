@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from warehouse_upstream_compat import (  # noqa: E402
+    SHIM_MARKER,
+    apply_v2_bridge_shim,
     validate_adapter_script,
     validate_index_compatibility,
     validate_protected_paths,
@@ -108,6 +110,60 @@ AndroidBridge.notifyTaskCompletion();
             report = validate_adapter_script(script, "TEST", "TEST_01")
             self.assertFalse(report.ok)
             self.assertEqual(report.blocking[0].code, "unsupported_bridge")
+        finally:
+            script.unlink(missing_ok=True)
+
+    def test_apply_v2_bridge_shim_adds_alias_for_v2_script(self) -> None:
+        script = "window.shiguangBridge.showToast('hi');"
+        new_text, applied = apply_v2_bridge_shim(script)
+        self.assertTrue(applied)
+        self.assertTrue(new_text.startswith(SHIM_MARKER))
+        self.assertIn("window.shiguangBridge = window.AndroidBridge;", new_text)
+        self.assertIn(
+            "window.shiguangBridgePromise = window.AndroidBridgePromise;",
+            new_text,
+        )
+        self.assertTrue(new_text.endswith(script))
+
+    def test_apply_v2_bridge_shim_skips_pure_v1_script(self) -> None:
+        script = "AndroidBridge.showToast('hi');"
+        new_text, applied = apply_v2_bridge_shim(script)
+        self.assertFalse(applied)
+        self.assertEqual(new_text, script)
+
+    def test_apply_v2_bridge_shim_is_idempotent(self) -> None:
+        script = "await window.shiguangBridgePromise.saveImportedCourses('[]');"
+        once, _ = apply_v2_bridge_shim(script)
+        twice, applied_again = apply_v2_bridge_shim(once)
+        self.assertFalse(applied_again)
+        self.assertEqual(once.count(SHIM_MARKER), 1)
+        self.assertEqual(twice, once)
+
+    def test_v2_unknown_bridge_method_is_blocked(self) -> None:
+        script = Path(ROOT / "tests" / "_tmp_test_script.js")
+        script.write_text(
+            "await window.shiguangBridgePromise.showConfirmDialog('a','b');",
+            encoding="utf-8",
+        )
+        try:
+            report = validate_adapter_script(script, "TEST", "TEST_01")
+            self.assertFalse(report.ok)
+            self.assertEqual(report.blocking[0].code, "unknown_bridge_method")
+        finally:
+            script.unlink(missing_ok=True)
+
+    def test_v2_supported_methods_pass_validation(self) -> None:
+        script = Path(ROOT / "tests" / "_tmp_test_script.js")
+        script.write_text(
+            """
+window.shiguangBridge.showToast('x');
+await window.shiguangBridgePromise.saveImportedCourses('[]');
+""",
+            encoding="utf-8",
+        )
+        try:
+            report = validate_adapter_script(script, "TEST", "TEST_01")
+            self.assertTrue(report.ok)
         finally:
             script.unlink(missing_ok=True)
 
