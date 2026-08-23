@@ -94,6 +94,8 @@ class ValidationReport:
     blocking: list[ValidationIssue] = field(default_factory=list)
     warnings: list[ValidationIssue] = field(default_factory=list)
     upstream_script_updates: list[tuple[str, str]] = field(default_factory=list)
+    # 预检暂存阶段按学校拆分的报告，供隔离机制使用
+    per_school_reports: dict[str, "ValidationReport"] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:

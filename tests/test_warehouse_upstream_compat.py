@@ -9,13 +9,19 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from warehouse_upstream_compat import (  # noqa: E402
     SHIM_MARKER,
+    ValidationIssue,
+    ValidationReport,
     apply_v2_bridge_shim,
     validate_adapter_script,
     validate_index_compatibility,
     validate_protected_paths,
     validate_sync_plan,
 )
-from sync_upstream import parse_asset_js_path  # noqa: E402
+from sync_upstream import (  # noqa: E402
+    SyncPlan,
+    parse_asset_js_path,
+    quarantine_blocked_schools,
+)
 
 
 class WarehouseUpstreamCompatTest(unittest.TestCase):
@@ -166,6 +172,63 @@ await window.shiguangBridgePromise.saveImportedCourses('[]');
             self.assertTrue(report.ok)
         finally:
             script.unlink(missing_ok=True)
+
+    def _make_plan(self) -> SyncPlan:
+        return SyncPlan(
+            upstream_only=["AAA"],
+            local_only=[],
+            id_to_folder={"AAA": "AAA", "BBB": "BBB"},
+            index_changed=True,
+            resource_paths=[
+                "index/root_index.yaml",
+                "resources/AAA",
+                "resources/BBB",
+            ],
+            refresh_schools=["BBB"],
+        )
+
+    def test_quarantine_moves_blocking_school_out_of_plan(self) -> None:
+        plan = self._make_plan()
+        bad = ValidationReport()
+        bad.blocking.append(
+            ValidationIssue(
+                level="blocking",
+                code="unknown_bridge_method",
+                message="x",
+                path="tmp/resources/AAA/a.js",
+            )
+        )
+        blocked = quarantine_blocked_schools(
+            plan,
+            {"AAA": bad, "BBB": ValidationReport()},
+            enabled=True,
+        )
+        self.assertEqual(blocked, {"AAA": "unknown_bridge_method"})
+        self.assertEqual(plan.upstream_only, [])
+        self.assertEqual(plan.refresh_schools, ["BBB"])
+        self.assertNotIn("resources/AAA", plan.resource_paths)
+        self.assertIn("resources/BBB", plan.resource_paths)
+        self.assertIn("index/root_index.yaml", plan.resource_paths)
+
+    def test_quarantine_disabled_keeps_plan_intact(self) -> None:
+        plan = self._make_plan()
+        bad = ValidationReport()
+        bad.blocking.append(
+            ValidationIssue(
+                level="blocking",
+                code="unknown_bridge_method",
+                message="x",
+                path="tmp/resources/AAA/a.js",
+            )
+        )
+        blocked = quarantine_blocked_schools(
+            plan,
+            {"AAA": bad},
+            enabled=False,
+        )
+        self.assertEqual(blocked, {})
+        self.assertEqual(plan.upstream_only, ["AAA"])
+        self.assertIn("resources/AAA", plan.resource_paths)
 
     def test_validate_sync_plan_ok_for_new_school(self) -> None:
         local = '''

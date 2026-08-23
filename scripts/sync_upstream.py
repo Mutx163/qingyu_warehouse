@@ -172,8 +172,9 @@ def validate_upstream_scripts_in_staging(
     warehouse_dir: Path,
     school_ids: list[str],
     id_to_folder: dict[str, str],
-) -> ValidationReport:
+) -> tuple[ValidationReport, dict[str, ValidationReport]]:
     report = ValidationReport()
+    per_school: dict[str, ValidationReport] = {}
     with tempfile.TemporaryDirectory(prefix="warehouse-sync-") as tmp:
         staging = Path(tmp)
         for school_id in school_ids:
@@ -194,8 +195,10 @@ def validate_upstream_scripts_in_staging(
                         (target / asset).write_text(script_text, encoding="utf-8")
                     break
 
-            report.merge(validate_adapter_folder(target, school_id))
-    return report
+            school_report = validate_adapter_folder(target, school_id)
+            per_school[school_id] = school_report
+            report.merge(school_report)
+    return report, per_school
 
 
 def run_validation(
@@ -219,13 +222,13 @@ def run_validation(
     )
 
     if pre_checkout and plan.validated_schools:
-        report.merge(
-            validate_upstream_scripts_in_staging(
-                warehouse_dir,
-                plan.validated_schools,
-                plan.id_to_folder,
-            )
+        script_report, per_school = validate_upstream_scripts_in_staging(
+            warehouse_dir,
+            plan.validated_schools,
+            plan.id_to_folder,
         )
+        report.merge(script_report)
+        report.per_school_reports = per_school
 
     return report
 
@@ -234,6 +237,56 @@ def print_validation_report(report: ValidationReport) -> None:
     text = format_report(report)
     if text:
         print(text)
+
+
+def quarantine_blocked_schools(
+    plan: SyncPlan,
+    per_school_reports: dict[str, ValidationReport],
+    *,
+    enabled: bool,
+) -> dict[str, str]:
+    """把预检存在阻断项的学校就地移出同步计划，返回「学校 -> 错误码」映射。
+
+    隔离后这些学校的资源目录不会被检出，本地保持现状；
+    其余学校照常走检出、垫片、校验、提交流程。
+    """
+    if not enabled or not per_school_reports:
+        return {}
+    blocked = {
+        sid: ", ".join(sorted({issue.code for issue in rep.blocking}))
+        for sid, rep in per_school_reports.items()
+        if rep.blocking
+    }
+    if not blocked:
+        return {}
+    blocked_ids = set(blocked)
+    plan.upstream_only = [s for s in plan.upstream_only if s not in blocked_ids]
+    plan.refresh_schools = [s for s in plan.refresh_schools if s not in blocked_ids]
+    keep_folders = {
+        plan.id_to_folder.get(s) for s in plan.validated_schools
+    } - {None}
+    plan.resource_paths = [
+        p
+        for p in plan.resource_paths
+        if p == "index/root_index.yaml"
+        or p.replace("\\", "/").removeprefix("resources/") in keep_folders
+    ]
+    return blocked
+
+
+def drop_school_issues(
+    report: ValidationReport,
+    folders: set[str],
+) -> None:
+    """从聚合报告中剔除指定资源目录学校的阻断/警告项。"""
+    markers = tuple(f"/resources/{folder}/" for folder in folders)
+
+    def _hit(path: str) -> bool:
+        normalized = path.replace("\\", "/")
+        return any(marker in normalized for marker in markers)
+
+    report.blocking = [issue for issue in report.blocking if not _hit(issue.path)]
+    report.warnings = [issue for issue in report.warnings if not _hit(issue.path)]
 
 
 def checkout_upstream_paths(warehouse_dir: Path, paths: list[str]) -> None:
@@ -281,6 +334,7 @@ def commit_if_needed(
     staged_paths: list[str],
     dry_run: bool,
     refresh_count: int = 0,
+    quarantine_note: str = "",
 ) -> str | None:
     if not staged_paths:
         return None
@@ -303,6 +357,11 @@ def commit_if_needed(
         + (
             f"刷新既有学校: {refresh_count} 个（已自动前置 v2 桥接兼容垫片）\n"
             if refresh_count
+            else ""
+        )
+        + (
+            f"隔离不兼容学校: {quarantine_note}\n"
+            if quarantine_note
             else ""
         )
         + "来源: shiguang_warehouse/main"
@@ -355,6 +414,11 @@ def main() -> int:
         action="store_true",
         help="同时同步上游已修改的既有学校脚本；落盘前自动前置 v2 桥接兼容垫片",
     )
+    parser.add_argument(
+        "--no-quarantine",
+        action="store_true",
+        help="关闭隔离机制：任一学校不兼容即整体中止（旧行为）",
+    )
     args = parser.parse_args()
 
     warehouse_dir = args.warehouse_dir.resolve()
@@ -391,6 +455,21 @@ def main() -> int:
 
     print("[4/6] Pre-sync compatibility validation")
     pre_report = run_validation(warehouse_dir, plan, pre_checkout=True)
+
+    quarantined_codes = quarantine_blocked_schools(
+        plan,
+        pre_report.per_school_reports,
+        enabled=not args.no_quarantine,
+    )
+    if quarantined_codes:
+        q_folders = {
+            plan.id_to_folder.get(sid, "") for sid in quarantined_codes
+        } - {""}
+        drop_school_issues(pre_report, q_folders)
+        print("QUARANTINE（兼容性阻断，本次跳过、本地保持现状）:")
+        for sid, codes in sorted(quarantined_codes.items()):
+            print(f"  [quarantined] {sid}: {codes}")
+
     print_validation_report(pre_report)
     if not pre_report.ok:
         print("\nSYNC ABORTED: 上游变更与轻屿环境不兼容，未修改任何文件。", file=sys.stderr)
@@ -432,6 +511,15 @@ def main() -> int:
         plan.resource_paths,
         args.dry_run,
         refresh_count=len(plan.refresh_schools),
+        quarantine_note=(
+            (
+                f"{len(quarantined_codes)} 个: "
+                + ", ".join(sorted(quarantined_codes)[:8])
+                + (" …" if len(quarantined_codes) > 8 else "")
+            )
+            if quarantined_codes
+            else ""
+        ),
     )
     push_if_needed(warehouse_dir, args.dry_run, args.no_push, committed)
 
