@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from warehouse_upstream_compat import (
+    ValidationIssue,
     ValidationReport,
     apply_v2_bridge_shim,
     find_upstream_script_updates,
@@ -184,20 +185,51 @@ def validate_upstream_scripts_in_staging(
             target.mkdir(parents=True, exist_ok=True)
 
             adapters_text = read_upstream_file(warehouse_dir, f"{rel_folder}/adapters.yaml")
-            (target / "adapters.yaml").write_text(adapters_text, encoding="utf-8")
 
-            # 注意：多适配器学校的每个 asset_js_path 都要暂存，
-            # 否则校验会误报 missing_adapter_script。
+            # 多适配器学校的每个 asset_js_path 都要暂存；
+            # 上游允许声明未提交的占位脚本（如 GLOBAL_TOOLS/test.js），
+            # 此类文件跳过读取，并在暂存的 adapters.yaml 副本中剔除该适配器。
+            available: set[str] = set()
+            missing: set[str] = set()
             for line in adapters_text.splitlines():
                 stripped = line.strip()
                 if not stripped.startswith("asset_js_path:"):
                     continue
                 asset = parse_asset_js_path(stripped)
-                if asset:
-                    script_text = read_upstream_file(warehouse_dir, f"{rel_folder}/{asset}")
+                if not asset:
+                    continue
+                rel_asset = f"{rel_folder}/{asset}"
+                if upstream_file_exists(warehouse_dir, rel_asset):
+                    script_text = read_upstream_file(warehouse_dir, rel_asset)
                     (target / asset).write_text(script_text, encoding="utf-8")
+                    available.add(asset)
+                else:
+                    missing.add(asset)
 
-            school_report = validate_adapter_folder(target, school_id)
+            if missing:
+                (target / "adapters.yaml").write_text(
+                    filter_adapters_yaml_blocks(adapters_text, missing),
+                    encoding="utf-8",
+                )
+                report.warnings.append(
+                    ValidationIssue(
+                        level="warning",
+                        code="upstream_placeholder_asset",
+                        message=(
+                            f"{school_id}: 上游声明的脚本不存在（占位），已跳过: "
+                            + ", ".join(sorted(missing))
+                        ),
+                        path=rel_folder,
+                    )
+                )
+            else:
+                (target / "adapters.yaml").write_text(adapters_text, encoding="utf-8")
+
+            school_report = validate_adapter_folder(
+                target,
+                school_id,
+                allow_missing_assets=True,
+            )
             per_school[school_id] = school_report
             report.merge(school_report)
     return report, per_school
@@ -289,6 +321,54 @@ def drop_school_issues(
 
     report.blocking = [issue for issue in report.blocking if not _hit(issue.path)]
     report.warnings = [issue for issue in report.warnings if not _hit(issue.path)]
+
+
+def upstream_file_exists(warehouse_dir: Path, relative_path: str) -> bool:
+    normalized = relative_path.replace("\\", "/")
+    result = run_git(
+        ["cat-file", "-e", f"{UPSTREAM_REF}:{normalized}"],
+        warehouse_dir,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def filter_adapters_yaml_blocks(yaml_text: str, drop_assets: set[str]) -> str:
+    """按适配器块过滤 adapters.yaml 文本：丢弃 asset_js_path 命中项的整块。"""
+    if not drop_assets:
+        return yaml_text
+
+    kept_lines: list[str] = []
+    block: list[str] | None = None
+    dropped_current = False
+
+    def _flush() -> None:
+        nonlocal block, dropped_current
+        if block is not None and not dropped_current:
+            kept_lines.extend(block)
+        block = None
+        dropped_current = False
+
+    for line in yaml_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- adapter_id:"):
+            _flush()
+            block = [line]
+            continue
+        if block is None:
+            kept_lines.append(line)
+            continue
+        block.append(line)
+        if stripped.startswith("asset_js_path:"):
+            asset = parse_asset_js_path(stripped)
+            if asset is not None and asset in drop_assets:
+                dropped_current = True
+    _flush()
+
+    text = "\n".join(kept_lines)
+    if yaml_text.endswith("\n") and not text.endswith("\n"):
+        text += "\n"
+    return text
 
 
 def checkout_upstream_paths(warehouse_dir: Path, paths: list[str]) -> None:

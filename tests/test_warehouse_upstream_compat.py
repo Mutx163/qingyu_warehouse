@@ -19,9 +19,11 @@ from warehouse_upstream_compat import (  # noqa: E402
 )
 from sync_upstream import (  # noqa: E402
     SyncPlan,
+    filter_adapters_yaml_blocks,
     parse_asset_js_path,
     quarantine_blocked_schools,
 )
+from warehouse_upstream_compat import validate_adapter_folder  # noqa: E402
 
 
 class WarehouseUpstreamCompatTest(unittest.TestCase):
@@ -229,6 +231,41 @@ await window.shiguangBridgePromise.saveImportedCourses('[]');
         self.assertEqual(blocked, {})
         self.assertEqual(plan.upstream_only, ["AAA"])
         self.assertIn("resources/AAA", plan.resource_paths)
+
+    def test_filter_adapters_yaml_blocks_drops_only_matching(self) -> None:
+        text = (
+            "adapters:\n"
+            '  - adapter_id: "A"\n'
+            '    asset_js_path: "a.js"\n'
+            '    description: "x"\n'
+            '  - adapter_id: "B"\n'
+            '    asset_js_path: "test.js"\n'
+        )
+        out = filter_adapters_yaml_blocks(text, {"test.js"})
+        self.assertIn('adapter_id: "A"', out)
+        self.assertNotIn('adapter_id: "B"', out)
+        self.assertTrue(out.startswith("adapters:"))
+
+    def test_missing_asset_downgraded_to_warning_when_allowed(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "adapters.yaml").write_text(
+                'adapters:\n  - adapter_id: "G"\n    adapter_name: "占位测试"\n    asset_js_path: "ghost.js"\n',
+                encoding="utf-8",
+            )
+            lenient = validate_adapter_folder(
+                folder,
+                "T",
+                allow_missing_assets=True,
+            )
+            self.assertTrue(lenient.ok)
+            codes = {issue.code for issue in lenient.warnings}
+            self.assertIn("missing_adapter_script_placeholder", codes)
+
+            strict = validate_adapter_folder(folder, "T")
+            self.assertFalse(strict.ok)
 
     def test_validate_sync_plan_ok_for_new_school(self) -> None:
         local = '''

@@ -222,7 +222,12 @@ def parse_adapters_asset_paths(yaml_text: str) -> list[str]:
     ]
 
 
-def validate_adapter_folder(folder: Path, school_id: str) -> ValidationReport:
+def validate_adapter_folder(
+    folder: Path,
+    school_id: str,
+    *,
+    allow_missing_assets: bool = False,
+) -> ValidationReport:
     report = ValidationReport()
     adapters_path = folder / "adapters.yaml"
     if not adapters_path.is_file():
@@ -262,6 +267,18 @@ def validate_adapter_folder(folder: Path, school_id: str) -> ValidationReport:
         asset = adapter.get("asset_js_path", "")
         script_path = folder / asset
         if not asset or not script_path.is_file():
+            # 上游约定 asset_js_path 可指向未提交的占位脚本（用于免索引测试），
+            # 同步校验场景下应降级为警告而非阻断。
+            if allow_missing_assets:
+                report.warnings.append(
+                    ValidationIssue(
+                        level="warning",
+                        code="missing_adapter_script_placeholder",
+                        message=f"{school_id} 声明的脚本缺失（疑似上游占位）: {asset}",
+                        path=str(script_path),
+                    )
+                )
+                continue
             report.blocking.append(
                 ValidationIssue(
                     level="blocking",
@@ -399,6 +416,7 @@ def validate_sync_plan(
                 validate_adapter_folder(
                     warehouse_dir / "resources" / folder,
                     school_id,
+                    allow_missing_assets=True,
                 )
             )
 
