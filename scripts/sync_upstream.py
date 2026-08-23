@@ -186,14 +186,16 @@ def validate_upstream_scripts_in_staging(
             adapters_text = read_upstream_file(warehouse_dir, f"{rel_folder}/adapters.yaml")
             (target / "adapters.yaml").write_text(adapters_text, encoding="utf-8")
 
+            # 注意：多适配器学校的每个 asset_js_path 都要暂存，
+            # 否则校验会误报 missing_adapter_script。
             for line in adapters_text.splitlines():
                 stripped = line.strip()
-                if stripped.startswith("asset_js_path:"):
-                    asset = parse_asset_js_path(stripped)
-                    if asset:
-                        script_text = read_upstream_file(warehouse_dir, f"{rel_folder}/{asset}")
-                        (target / asset).write_text(script_text, encoding="utf-8")
-                    break
+                if not stripped.startswith("asset_js_path:"):
+                    continue
+                asset = parse_asset_js_path(stripped)
+                if asset:
+                    script_text = read_upstream_file(warehouse_dir, f"{rel_folder}/{asset}")
+                    (target / asset).write_text(script_text, encoding="utf-8")
 
             school_report = validate_adapter_folder(target, school_id)
             per_school[school_id] = school_report
