@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 郑州航空工业管理学院 (zua.edu.cn) 拾光课程表适配脚本
 // 复用 HFNU 的树维 EAMS 解析流程，并针对 ZUA 的课程名和教室格式做适配。
 
@@ -364,7 +371,7 @@ async function getSelectedSemester(tagId, currentSemesterId) {
 
     const selectedId = currentSemesterId || parsed.currentSemesterId;
     const defaultIndex = parsed.semesters.findIndex(semester => semester.id === selectedId);
-    const index = await window.AndroidBridgePromise.showSingleSelection(
+    const index = await window.shiguangBridgePromise.showSingleSelection(
         "选择学期",
         JSON.stringify(parsed.semesters.map(semester => semester.name)),
         defaultIndex
@@ -408,7 +415,7 @@ async function fetchCalendarInfo(semesterId) {
 async function trySaveCalendarInfo(semesterId) {
     try {
         const calendarInfo = await fetchCalendarInfo(semesterId);
-        const saveResult = await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify({
+        const saveResult = await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify({
             semesterStartDate: calendarInfo.semesterStartDate,
             semesterTotalWeeks: calendarInfo.semesterTotalWeeks,
             firstDayOfWeek: calendarInfo.firstDayOfWeek
@@ -422,7 +429,7 @@ async function trySaveCalendarInfo(semesterId) {
 
 async function trySaveTimeSlots() {
     try {
-        const saveResult = await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(getZuaTimeSlots()));
+        const saveResult = await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(getZuaTimeSlots()));
         return saveResult === true;
     } catch (error) {
         console.warn(`[ZUA 作息时间设置失败] ${error.message}`);
@@ -441,27 +448,27 @@ function buildCompletionMessage(calendarSaved, timeSlotsSaved) {
 
 async function runImportFlow() {
     try {
-        AndroidBridge.showToast("开始探测郑航教务参数...");
+        window.shiguangBridge.showToast("开始探测郑航教务参数...");
         const params = await detectParameters();
         if (!params) throw new Error("未能识别教务参数，请确认已登录郑航教务系统");
 
         const semester = await getSelectedSemester(params.tagId, params.currentSemesterId);
         if (!semester) return;
 
-        AndroidBridge.showToast("正在同步课表...");
+        window.shiguangBridge.showToast("正在同步课表...");
         const courses = await fetchAndParseCourses(semester.id, params.ids);
         if (!courses || courses.length === 0) throw new Error("未解析到课程数据");
 
-        const saveResult = await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        const saveResult = await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
         if (!saveResult) throw new Error("课程保存失败");
 
         const calendarSaved = await trySaveCalendarInfo(semester.id);
         const timeSlotsSaved = await trySaveTimeSlots();
-        AndroidBridge.showToast(buildCompletionMessage(calendarSaved, timeSlotsSaved));
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.showToast(buildCompletionMessage(calendarSaved, timeSlotsSaved));
+        window.shiguangBridge.notifyTaskCompletion();
     } catch (error) {
         console.error(`[ZUA 课表导入异常] ${error.message}`);
-        AndroidBridge.showToast(error.message);
+        window.shiguangBridge.showToast(error.message);
     }
 }
 

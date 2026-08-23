@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 通用 URP 教务拾光课程表适配脚本
 
 /**
@@ -90,7 +97,7 @@ function parseTimeSlots() {
  */
 async function fetchAndParseJwData() {
     try {
-        AndroidBridge.showToast("正在解析网页课表...");
+        window.shiguangBridge.showToast("正在解析网页课表...");
         
         let courses = [];
         
@@ -145,7 +152,7 @@ async function fetchAndParseJwData() {
         return { courses, timeSlots };
     } catch (e) {
         console.error("HTML解析失败详情:", e);
-        AndroidBridge.showToast("同步失败: " + e.message);
+        window.shiguangBridge.showToast("同步失败: " + e.message);
         return null;
     }
 }
@@ -154,11 +161,11 @@ async function fetchAndParseJwData() {
  * 辅助：保存数据到外部 APP
  */
 async function saveToApp(result) {
-    const courseSuccess = await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(result.courses));
+    const courseSuccess = await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(result.courses));
     if (!courseSuccess) return false;
 
     if (result.timeSlots && result.timeSlots.length > 0) {
-        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(result.timeSlots));
+        await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(result.timeSlots));
     }
     return true;
 }
@@ -167,7 +174,7 @@ async function saveToApp(result) {
  * 流程控制流程
  */
 async function runImportFlow() {
-    const alertResult = await window.AndroidBridgePromise.showAlert(
+    const alertResult = await window.shiguangBridgePromise.showAlert(
         "教务网页课表导入",
         "请确保您当前的网页已加载出课表视图后再开始导入",
         "开始同步"
@@ -178,8 +185,8 @@ async function runImportFlow() {
     if (!result || result.courses.length === 0) return;
 
     if (await saveToApp(result)) {
-        AndroidBridge.showToast(`成功从网页导入 ${result.courses.length} 个课程时段`);
-        AndroidBridge.notifyTaskCompletion(); 
+        window.shiguangBridge.showToast(`成功从网页导入 ${result.courses.length} 个课程时段`);
+        window.shiguangBridge.notifyTaskCompletion(); 
     }
 }
 

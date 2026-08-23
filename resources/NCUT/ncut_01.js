@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 (function() {
     'use strict';
 
@@ -98,9 +105,9 @@
         return courses;
     }
 
-    async function saveCourses(c){ try{await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(c));}catch(e){} }
-    async function saveTimeSlots(s){ try{await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(s));}catch(e){} }
-    async function saveConfig(c){ try{await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(c));}catch(e){} }
+    async function saveCourses(c){ try{await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(c));}catch(e){} }
+    async function saveTimeSlots(s){ try{await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(s));}catch(e){} }
+    async function saveConfig(c){ try{await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(c));}catch(e){} }
 
     function waitForScheduleDoc(maxWait=15000) {
         const start=Date.now();
@@ -124,7 +131,7 @@
             await saveConfig(config);
             await saveTimeSlots(timeSlots);
             await saveCourses(courses);
-            AndroidBridge.notifyTaskCompletion();
+            window.shiguangBridge.notifyTaskCompletion();
         } catch(e) {}
     }
 

@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 广东药科大学 (gdpu.edu.cn) 拾光课程表适配脚本
 // 基于正方教务系统接口适配
 // 非该大学开发者适配,开发者无法及时发现问题
@@ -110,7 +117,7 @@ function validateYearInput(input) {
 }
 
 async function promptUserToStart() {
-    return await window.AndroidBridgePromise.showAlert(
+    return await window.shiguangBridgePromise.showAlert(
         "教务系统课表导入",
         "导入前请确保您已在浏览器中登录广东药科大学教务系统并进入课表页面",
         "好的，开始导入"
@@ -119,7 +126,7 @@ async function promptUserToStart() {
 
 async function getAcademicYear() {
     const currentYear = new Date().getFullYear().toString();
-    return await window.AndroidBridgePromise.showPrompt(
+    return await window.shiguangBridgePromise.showPrompt(
         "选择学年",
         "请输入要导入课程的起始学年（例如 2025-2026 应输入2025）:",
         currentYear,
@@ -129,7 +136,7 @@ async function getAcademicYear() {
 
 async function selectSemester() {
     const semesters = ["第一学期", "第二学期"];
-    const semesterIndex = await window.AndroidBridgePromise.showSingleSelection(
+    const semesterIndex = await window.shiguangBridgePromise.showSingleSelection(
         "选择学期",
         JSON.stringify(semesters),
         0
@@ -148,7 +155,7 @@ async function selectCampus() {
     const campusKeys = ["campus_1", "campus_2"];
     const campusDisplayNames = ["广州、云浮校区", "中山校区"];
     
-    const campusIndex = await window.AndroidBridgePromise.showSingleSelection(
+    const campusIndex = await window.shiguangBridgePromise.showSingleSelection(
         "选择校区",
         JSON.stringify(campusDisplayNames),
         0
@@ -162,7 +169,7 @@ async function selectCampus() {
  * 请求和解析课程数据
  */
 async function fetchAndParseCourses(academicYear, semesterIndex) {
-    AndroidBridge.showToast("正在请求课表数据...");
+    window.shiguangBridge.showToast("正在请求课表数据...");
     const semesterCode = getSemesterCode(semesterIndex);
     const xnmXqmBody = `xnm=${academicYear}&xqm=${semesterCode}&kzlx=ck&xsdm=&kclbdm=`; 
     const url = "https://webvpn.gdpu.edu.cn/http/77726476706e69737468656265737421fae05285347e6f546e1dc7a99c406d36fe/kbcx/xskbcx_cxXsgrkb.html?vpn-12-o1-jwsys.gdpu.edu.cn&gnmkdm=N2151";
@@ -187,14 +194,14 @@ async function fetchAndParseCourses(academicYear, semesterIndex) {
         try {
             jsonData = JSON.parse(jsonText);
         } catch (e) {
-            AndroidBridge.showToast("数据解析失败，请检查是否登录过期。");
+            window.shiguangBridge.showToast("数据解析失败，请检查是否登录过期。");
             return null;
         }
 
         const courses = parseJsonData(jsonData); 
 
         if (courses.length === 0) {
-            AndroidBridge.showToast("未找到课程数据，请检查学年学期。");
+            window.shiguangBridge.showToast("未找到课程数据，请检查学年学期。");
             return null;
         }
         
@@ -208,19 +215,19 @@ async function fetchAndParseCourses(academicYear, semesterIndex) {
         return { courses: courses, config: config }; 
 
     } catch (error) {
-        AndroidBridge.showToast(`请求失败: ${error.message}`);
+        window.shiguangBridge.showToast(`请求失败: ${error.message}`);
         console.error(error);
         return null;
     }
 }
 
 async function saveCourses(parsedCourses) {
-    AndroidBridge.showToast(`正在保存 ${parsedCourses.length} 门课程...`);
+    window.shiguangBridge.showToast(`正在保存 ${parsedCourses.length} 门课程...`);
     try {
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(parsedCourses, null, 2));
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(parsedCourses, null, 2));
         return true;
     } catch (error) {
-        AndroidBridge.showToast(`课程保存失败: ${error.message}`);
+        window.shiguangBridge.showToast(`课程保存失败: ${error.message}`);
         console.error(error);
         return false;
     }
@@ -270,7 +277,7 @@ async function importPresetTimeSlots(campusKey) {
     const timeSlots = CampusTimeSlots[campusKey];
     if (timeSlots && timeSlots.length > 0) {
         try {
-            await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+            await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
         } catch (error) {
             console.error(error);
         }
@@ -279,7 +286,7 @@ async function importPresetTimeSlots(campusKey) {
 
 async function runImportFlow() {
     if (isLoginPage()) {
-        AndroidBridge.showToast("导入失败：请先在浏览器登录教务系统！");
+        window.shiguangBridge.showToast("导入失败：请先在浏览器登录教务系统！");
         return;
     }
     const alertConfirmed = await promptUserToStart();
@@ -302,14 +309,14 @@ async function runImportFlow() {
     if (!saveResult) return;
     
     try {
-        await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(config));
+        await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(config));
     } catch (error) {
         console.error(error);
     }
 
     await importPresetTimeSlots(campusKey);
-    AndroidBridge.showToast(`导入成功，共导入 ${courses.length} 门课程！`);
-    AndroidBridge.notifyTaskCompletion();
+    window.shiguangBridge.showToast(`导入成功，共导入 ${courses.length} 门课程！`);
+    window.shiguangBridge.notifyTaskCompletion();
 }
 
 runImportFlow();

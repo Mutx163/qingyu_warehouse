@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 /**
  * 青果教务系统通用适配脚本
  * 采用“倒数 7 列”逻辑，解决星期偏移
@@ -128,17 +135,17 @@ async function fetchAndParseCourses() {
 
 async function runImportFlow() {
     try {
-        AndroidBridge.showToast("正在合并课表数据...");
+        window.shiguangBridge.showToast("正在合并课表数据...");
         const courses = await fetchAndParseCourses();
         if (!courses || courses.length === 0) {
-            AndroidBridge.showToast("未找到可导入课程");
+            window.shiguangBridge.showToast("未找到可导入课程");
             return;
         }
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
-        AndroidBridge.showToast(`成功：已优化合并为 ${courses.length} 个课块`);
-        AndroidBridge.notifyTaskCompletion();
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        window.shiguangBridge.showToast(`成功：已优化合并为 ${courses.length} 个课块`);
+        window.shiguangBridge.notifyTaskCompletion();
     } catch (error) {
-        AndroidBridge.showToast("解析失败: " + error.message);
+        window.shiguangBridge.showToast("解析失败: " + error.message);
     }
 }
 

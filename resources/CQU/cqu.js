@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 const getStudentId = () => document.querySelector('.trigger-user-name').innerText.match(/\[(.*?)\]/)?.[1];
 
 const checkLogin = () => window.location.hostname === 'my.cqu.edu.cn' && getStudentId() !== undefined;
@@ -18,7 +25,7 @@ const baseFetch = async (url, accessToken, method, body, description) => {
         }
     );
     if (!response.ok) {
-        AndroidBridge.showToast(`获取${description}失败，请退出重试`);
+        window.shiguangBridge.showToast(`获取${description}失败，请退出重试`);
         throw new Error(`获取${description}失败: ${termResponse.status} ${termResponse.statusText}`);
     }
     return await response.json();
@@ -56,15 +63,15 @@ const parseSchedule = (startDate, maxWeek, timeSlots, schedule) => ({
 });
 
 const saveSchedule = (parsedSchedule) => Promise.allSettled([
-    window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(parsedSchedule?.courseConfig)),
-    window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(parsedSchedule?.courses)),
-    window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(parsedSchedule?.timeSlots)),
+    window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(parsedSchedule?.courseConfig)),
+    window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(parsedSchedule?.courses)),
+    window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(parsedSchedule?.timeSlots)),
 ]);
 
 
 (async () => {
     if (!checkLogin()) {
-        AndroidBridge.showToast("尚未登录重庆大学教务系统，请先登录！");
+        window.shiguangBridge.showToast("尚未登录重庆大学教务系统，请先登录！");
         throw new Error("未检测到登录状态");
     }
     
@@ -73,7 +80,7 @@ const saveSchedule = (parsedSchedule) => Promise.allSettled([
     const accessToken = getAccessToken();
 
     if (!accessToken) {
-        AndroidBridge.showToast("尚未登录");
+        window.shiguangBridge.showToast("尚未登录");
         throw new Error("未找到访问令牌，请确保已登录 my.cqu.edu.cn");
     }
 
@@ -81,5 +88,5 @@ const saveSchedule = (parsedSchedule) => Promise.allSettled([
 
     await saveSchedule(parseSchedule(...(await Promise.allSettled([getStartDate(termId, accessToken), getMaxWeek(termId, accessToken), getTimeSlots(accessToken), getSchedule(termId, accessToken, studentId)])).map(result => result.value)));
 
-    AndroidBridge.notifyTaskCompletion();
+    window.shiguangBridge.notifyTaskCompletion();
 })();

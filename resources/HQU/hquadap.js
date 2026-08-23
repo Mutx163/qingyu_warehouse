@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 /**
  * 华侨大学 (HQU) 教务系统课程导入脚本
  * 版本：2026 春季学期
@@ -14,7 +21,7 @@ function validateTermInput(input) {
 }
 
 async function runImportFlow() {
-    AndroidBridge.showToast("正在启动华大教务同步程序...");
+    window.shiguangBridge.showToast("正在启动华大教务同步程序...");
 
     try {
         // --- 1. 获取学期代码 ---
@@ -101,7 +108,7 @@ async function runImportFlow() {
 });
 
         // --- 5. 提交数据 ---
-        await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify({
+        await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify({
             semesterStartDate: startDate,
             semesterTotalWeeks: totalWeeks
         }));
@@ -115,15 +122,15 @@ async function runImportFlow() {
             { number: 11, startTime: "19:10", endTime: "19:55" }, { number: 12, startTime: "20:05", endTime: "20:50" },
             { number: 13, startTime: "20:55", endTime: "21:40" }
         ];
-        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+        await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
 
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(parsedCourses));
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(parsedCourses));
 
-        AndroidBridge.showToast(`${currentXNXQ} 导入成功！`);
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.showToast(`${currentXNXQ} 导入成功！`);
+        window.shiguangBridge.notifyTaskCompletion();
 
     } catch (e) {
-        await window.AndroidBridgePromise.showAlert("导入失败", "错误: " + e.message, "重试");
+        await window.shiguangBridgePromise.showAlert("导入失败", "错误: " + e.message, "重试");
     }
 }
 

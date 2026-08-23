@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 const SECTION_TIMES = [
     { number: 1,  startTime: "08:00", endTime: "08:45" },
     { number: 2,  startTime: "08:55", endTime: "09:40" },
@@ -168,24 +175,24 @@ async function fetchAndParseCourses() {
 
 async function runImportFlow() {
     try {
-        AndroidBridge.showToast("泰山学院引擎启动，抓取数据中...");
+        window.shiguangBridge.showToast("泰山学院引擎启动，抓取数据中...");
         const courses = await fetchAndParseCourses();
         if (!courses || courses.length === 0) {
-            AndroidBridge.showToast("解析完成，但当前课表为空");
-            AndroidBridge.notifyTaskCompletion();
+            window.shiguangBridge.showToast("解析完成，但当前课表为空");
+            window.shiguangBridge.notifyTaskCompletion();
             return;
         }
 
-        const saveResult = await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        const saveResult = await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
         if (saveResult !== true) return;
 
-        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(SECTION_TIMES));
+        await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(SECTION_TIMES));
 
-        AndroidBridge.showToast(`导入大成功！合并生成 ${courses.length} 个课块`);
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.showToast(`导入大成功！合并生成 ${courses.length} 个课块`);
+        window.shiguangBridge.notifyTaskCompletion();
     } catch (error) {
-        AndroidBridge.showToast("⚠️ " + error.message);
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.showToast("⚠️ " + error.message);
+        window.shiguangBridge.notifyTaskCompletion();
     }
 }
 

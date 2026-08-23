@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 function findHljuTimetableRequest() {
     const resources = performance.getEntriesByType("resource");
 
@@ -395,11 +402,11 @@ function printCourses(courses) {
 
 async function saveHljuCourses(courses) {
     try {
-        await window.AndroidBridgePromise.saveImportedCourses(
+        await window.shiguangBridgePromise.saveImportedCourses(
             JSON.stringify(courses)
         );
 
-        AndroidBridge.showToast(
+        window.shiguangBridge.showToast(
             `成功导入 ${courses.length} 个课程时段！`
         );
 
@@ -412,7 +419,7 @@ async function saveHljuCourses(courses) {
     } catch (error) {
         console.error("保存课程失败：", error);
 
-        AndroidBridge.showToast(
+        window.shiguangBridge.showToast(
             "课程保存失败：" + error.message
         );
 
@@ -424,7 +431,7 @@ async function saveHljuCourses(courses) {
 
 async function runImportFlow() {
     try {
-        AndroidBridge.showToast(
+        window.shiguangBridge.showToast(
             "正在获取黑龙江大学课表..."
         );
 
@@ -447,7 +454,7 @@ async function runImportFlow() {
 
         printCourses(courses);
 
-        AndroidBridge.showToast(
+        window.shiguangBridge.showToast(
             `解析成功，共 ${courses.length} 个课程时段`
         );
 
@@ -463,7 +470,7 @@ async function runImportFlow() {
 
 
 
-        AndroidBridge.showToast(
+        window.shiguangBridge.showToast(
             "黑龙江大学课表导入成功！"
         );
 
@@ -472,7 +479,7 @@ async function runImportFlow() {
         );
 
         // 只有全部成功后才发送结束信号
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.notifyTaskCompletion();
 
     } catch (error) {
         console.error(
@@ -480,7 +487,7 @@ async function runImportFlow() {
             error
         );
 
-        AndroidBridge.showToast(
+        window.shiguangBridge.showToast(
             "课表导入失败：" + error.message
         );
     }

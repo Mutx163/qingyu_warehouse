@@ -6,4 +6,4 @@ adapters:
     asset_js_path: "cjlu.js"
     import_url: "https://jwxt.cjlu.edu.cn/jwglxt/xtgl/login_slogin.html"
     maintainer: "ying-ck"
-    description: "中国计量大学正方教务系统课表导入，登录后进入课表查询页面（信息查询→个人课表查询）点击查询后执行导入。"
+    description: "中国计量大学正方教务系统课表导入，登录后执行导入。"

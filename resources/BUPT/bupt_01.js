@@ -1,19 +1,26 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 北京邮电大学本科教务管理系统拾光课表适配脚本
 // 适配页面：https://jwgl.bupt.edu.cn/jsxsd/xskb/xskb_list.do
 // 当前版本只解析已打开的“学期理论课表”页面，不主动请求接口。
 
 (function () {
     function toast(message) {
-        if (window.AndroidBridge && AndroidBridge.showToast) {
-            AndroidBridge.showToast(message);
+        if (window.shiguangBridge && window.shiguangBridge.showToast) {
+            window.shiguangBridge.showToast(message);
         } else {
             console.log(message);
         }
     }
 
     async function alertUser(title, message) {
-        if (window.AndroidBridgePromise && window.AndroidBridgePromise.showAlert) {
-            return await window.AndroidBridgePromise.showAlert(title, message, "确定");
+        if (window.shiguangBridgePromise && window.shiguangBridgePromise.showAlert) {
+            return await window.shiguangBridgePromise.showAlert(title, message, "确定");
         }
         alert(title + "\n" + message);
         return true;
@@ -262,15 +269,15 @@
             defaultBreakDuration: 5
         };
 
-        if (window.AndroidBridgePromise && window.AndroidBridgePromise.saveCourseConfig) {
-            await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(config));
+        if (window.shiguangBridgePromise && window.shiguangBridgePromise.saveCourseConfig) {
+            await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(config));
         }
-        if (timeSlots.length > 0 && window.AndroidBridgePromise && window.AndroidBridgePromise.savePresetTimeSlots) {
-            await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+        if (timeSlots.length > 0 && window.shiguangBridgePromise && window.shiguangBridgePromise.savePresetTimeSlots) {
+            await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
         }
 
-        if (window.AndroidBridgePromise && window.AndroidBridgePromise.saveImportedCourses) {
-            return await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        if (window.shiguangBridgePromise && window.shiguangBridgePromise.saveImportedCourses) {
+            return await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
         }
 
         console.log("BUPT parsed courses:", JSON.stringify(courses, null, 2));
@@ -313,8 +320,8 @@
             }
 
             toast(`导入成功：${courses.length} 个课程时段${timeSlots.length ? "，已同步作息时间" : ""}`);
-            if (window.AndroidBridge && AndroidBridge.notifyTaskCompletion) {
-                AndroidBridge.notifyTaskCompletion();
+            if (window.shiguangBridge && window.shiguangBridge.notifyTaskCompletion) {
+                window.shiguangBridge.notifyTaskCompletion();
             }
         } catch (error) {
             console.error("BUPT import failed:", error);

@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 山东交通学院 (sdjtu.edu.cn) 拾光课程表适配脚本
 // 教务系统类型：强智教务（通过深信服WebVPN访问）
 // 直接读取页面DOM解析课表，WebVPN代理下fetch可能失败
@@ -268,7 +275,7 @@ function getDefaultStartDate(semesterId) {
  */
 async function getSemesterStartDate(semesterId) {
     const defaultDate = getDefaultStartDate(semesterId);
-    const dateInput = await window.AndroidBridgePromise.showPrompt(
+    const dateInput = await window.shiguangBridgePromise.showPrompt(
         "设置开学日期",
         "请输入本学期开学日期，一般为周一（格式 YYYY-MM-DD，如 2026-02-23）：",
         defaultDate,
@@ -283,7 +290,7 @@ async function getSemesterStartDate(semesterId) {
 async function runImportFlow() {
     try {
         // 1. 确认提示
-        const confirmed = await window.AndroidBridgePromise.showAlert(
+        const confirmed = await window.shiguangBridgePromise.showAlert(
             "导入提示",
             "请确保您已登录教务系统并打开了【学期理论课表】页面（已选好学期）。\n脚本将直接读取当前页面的课表数据。",
             "确认并开始"
@@ -293,7 +300,7 @@ async function runImportFlow() {
         // 2. 获取课表文档
         const doc = getScheduleDocument();
         if (!doc) {
-            AndroidBridge.showToast("未找到课表页面，请先打开【学期理论课表】");
+            window.shiguangBridge.showToast("未找到课表页面，请先打开【学期理论课表】");
             return;
         }
 
@@ -302,14 +309,14 @@ async function runImportFlow() {
         // 3. 获取开学日期
         const startDate = await getSemesterStartDate(semesterId);
         if (startDate === null) {
-            AndroidBridge.showToast("已取消开学日期输入");
+            window.shiguangBridge.showToast("已取消开学日期输入");
             return;
         }
 
         // 4. 解析课程数据
         const courses = parseCourses(doc);
         if (courses.length === 0) {
-            AndroidBridge.showToast("未获取到课程数据，该学期可能暂无课表");
+            window.shiguangBridge.showToast("未获取到课程数据，该学期可能暂无课表");
             return;
         }
 
@@ -318,10 +325,10 @@ async function runImportFlow() {
 
         // 6. 保存数据
         if (timeSlots.length > 0) {
-            await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+            await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
         }
 
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
 
         // 7. 保存课表配置（含开学日期）
         const config = {
@@ -331,14 +338,14 @@ async function runImportFlow() {
             defaultBreakDuration: 5,
             firstDayOfWeek: 1
         };
-        await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(config));
+        await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(config));
 
-        AndroidBridge.showToast(`[${semesterId}] 成功导入 ${courses.length} 条课程记录！`);
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.showToast(`[${semesterId}] 成功导入 ${courses.length} 条课程记录！`);
+        window.shiguangBridge.notifyTaskCompletion();
 
     } catch (error) {
         console.error("适配脚本异常:", error);
-        AndroidBridge.showToast("异常: " + error.message);
+        window.shiguangBridge.showToast("异常: " + error.message);
     }
 }
 

@@ -1,8 +1,18 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 江苏旅游职业学院（jstc.edu.cn） 拾光课程表适配脚本
 // 非该大学开发者适配,开发者无法及时发现问题
 // 出现问题请提issues或者提交pr更改,这更加快速
 
-const presetTimeSlots = [
+
+
+// 不确定是否还有效的数据 仅保留代码内部不做调用
+const presetTimeSlots_oldFunction = [
     { number: 1, startTime: "08:00", endTime: "08:45" },
     { number: 2, startTime: "08:50", endTime: "09:35" },
     { number: 3, startTime: "09:55", endTime: "10:40" },
@@ -15,6 +25,24 @@ const presetTimeSlots = [
     { number: 10, startTime: "19:00", endTime: "19:45" },
     { number: 11, startTime: "19:50", endTime: "20:35" }
 ];
+
+
+
+
+const presetTimeSlots = [
+    { number: 1, startTime: "08:00", endTime: "08:40" },
+    { number: 2, startTime: "08:50", endTime: "09:30" },
+    { number: 3, startTime: "09:50", endTime: "10:30" },
+    { number: 4, startTime: "10:40", endTime: "11:20" },
+    { number: 5, startTime: "11:30", endTime: "12:10" },
+    { number: 6, startTime: "14:00", endTime: "14:40" },
+    { number: 7, startTime: "14:50", endTime: "15:30" },
+    { number: 8, startTime: "15:50", endTime: "16:30" },
+    { number: 9, startTime: "16:40", endTime: "17:20" },
+    { number: 10, startTime: "19:00", endTime: "19:40" },
+    { number: 11, startTime: "19:50", endTime: "20:30" }
+];
+
 
 /**
  * 获取学期下拉列表选项
@@ -127,38 +155,38 @@ async function fetchAndParseCourses(semesterId) {
  * 流程控制
  */
 async function runImportFlow() {
-    AndroidBridge.showToast("开始拉取学期列表...");
+    window.shiguangBridge.showToast("开始拉取学期列表...");
 
     // 获取学期列表
     const semesters = await fetchSemesters();
     if (!semesters || semesters.length === 0) {
-        AndroidBridge.showToast("获取学期列表失败，请检查登录状态或网络");
+        window.shiguangBridge.showToast("获取学期列表失败，请检查登录状态或网络");
         return;
     }
 
     const labels = semesters.map(s => s.label);
-    const selectedIndex = await window.AndroidBridgePromise.showSingleSelection(
+    const selectedIndex = await window.shiguangBridgePromise.showSingleSelection(
         "选择学期",
         JSON.stringify(labels),
         -1
     );
 
     if (selectedIndex === null || selectedIndex < 0) {
-        AndroidBridge.showToast("操作已取消");
+        window.shiguangBridge.showToast("操作已取消");
         return;
     }
 
     const selectedSemester = semesters[selectedIndex];
 
     // 并行获取元数据与课程表
-    AndroidBridge.showToast("正在拉取课表数据...");
+    window.shiguangBridge.showToast("正在拉取课表数据...");
     const [startDate, courses] = await Promise.all([
         fetchSemesterMetadata(selectedSemester.value),
         fetchAndParseCourses(selectedSemester.value)
     ]);
 
     if (!courses || courses.length === 0) {
-        AndroidBridge.showToast("未查询到有效课程数据");
+        window.shiguangBridge.showToast("未查询到有效课程数据");
         return;
     }
 
@@ -169,31 +197,31 @@ async function runImportFlow() {
     };
 
     try {
-        await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(configData));
+        await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(configData));
     } catch (e) {
-        AndroidBridge.showToast("配置保存异常: " + e.message);
+        window.shiguangBridge.showToast("配置保存异常: " + e.message);
         return;
     }
 
     // 保存课程列表
     try {
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
     } catch (e) {
-        AndroidBridge.showToast("课程保存异常: " + e.message);
+        window.shiguangBridge.showToast("课程保存异常: " + e.message);
         return;
     }
 
     // 保存预设作息时间
     try {
-        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(presetTimeSlots));
+        await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(presetTimeSlots));
     } catch (e) {
-        AndroidBridge.showToast("作息时间保存异常: " + e.message);
+        window.shiguangBridge.showToast("作息时间保存异常: " + e.message);
     }
 
-    AndroidBridge.showToast(`成功导入 ${courses.length} 门课程及作息时间！`);
+    window.shiguangBridge.showToast(`成功导入 ${courses.length} 门课程及作息时间！`);
 
     // 任务完成通知
-    AndroidBridge.notifyTaskCompletion();
+    window.shiguangBridge.notifyTaskCompletion();
 }
 
 runImportFlow();

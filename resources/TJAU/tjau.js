@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 天津农学院(tjau.edu.cn) 拾光课程表适配脚本
 // 非该大学开发者适配,开发者无法及时发现问题
 // 出现问题请提issues或者提交pr更改,这更加快速
@@ -207,7 +214,7 @@ async function getSelectedSemester(tagId) {
     for (let key in data.semesters) {
         data.semesters[key].forEach(s => list.push({ id: s.id, name: `${s.schoolYear} ${s.name}学期` }));
     }
-    const idx = await window.AndroidBridgePromise.showSingleSelection("选择学期", JSON.stringify(list.map(s => s.name)), 0);
+    const idx = await window.shiguangBridgePromise.showSingleSelection("选择学期", JSON.stringify(list.map(s => s.name)), 0);
     return idx !== null ? list[idx] : null;
 }
 
@@ -234,34 +241,34 @@ async function applyTimeSlots() {
         { "number": 10, "startTime": "19:20", "endTime": "20:05" },
         { "number": 11, "startTime": "20:10", "endTime": "20:55" }
     ];
-    return await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(slots));
+    return await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(slots));
 }
 
 
 async function runImportFlow() {
     try {
-        AndroidBridge.showToast("开始探测教务参数...");
+        window.shiguangBridge.showToast("开始探测教务参数...");
         const params = await detectParameters();
         if (!params) throw new Error("未能识别教务参数，请确认已登录");
 
         const semester = await getSelectedSemester(params.tagId);
         if (!semester) return; 
 
-        AndroidBridge.showToast("正在同步课表...");
+        window.shiguangBridge.showToast("正在同步课表...");
         const courses = await fetchAndParseCourses(semester.id, params.ids);
         
         if (!courses || courses.length === 0) throw new Error("未解析到课程数据");
 
         await applyTimeSlots();
-        const saveResult = await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        const saveResult = await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
         
         if (saveResult) {
-            AndroidBridge.showToast(`成功导入 ${courses.length} 个课程条目`);
-            AndroidBridge.notifyTaskCompletion();
+            window.shiguangBridge.showToast(`成功导入 ${courses.length} 个课程条目`);
+            window.shiguangBridge.notifyTaskCompletion();
         }
     } catch (e) {
         console.error(`[异常] ${e.message}`);
-        AndroidBridge.showToast(e.message);
+        window.shiguangBridge.showToast(e.message);
     }
 }
 

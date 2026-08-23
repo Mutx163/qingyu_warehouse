@@ -1,3 +1,10 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 中国石油大学（华东)(upc.edu.cn) 拾光课程表适配脚本
 // 非该大学开发者适配,开发者无法及时发现问题
 // 出现问题请提联系开发者或者提交pr更改,这更加快速
@@ -118,7 +125,7 @@ async function saveAppConfig() {
     const config = {
         "firstDayOfWeek": 7
     };
-    return await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(config));
+    return await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(config));
 }
 
 /**
@@ -139,7 +146,7 @@ async function saveAppTimeSlots() {
         { "number": 11, "startTime": "19:50", "endTime": "20:35" },
         { "number": 12, "startTime": "20:40", "endTime": "21:25" }
     ];
-    return await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+    return await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
 }
 
 /**
@@ -147,12 +154,12 @@ async function saveAppTimeSlots() {
  */
 async function getSelectedSemesterId() {
     const currentYear = new Date().getFullYear();
-    const year = await window.AndroidBridgePromise.showPrompt(
+    const year = await window.shiguangBridgePromise.showPrompt(
         "选择学年", "请输入起始学年（如 2025-2026 应输入 2025）:", String(currentYear), "validateYearInput"
     );
     if (!year) return null;
     
-    const semesterIndex = await window.AndroidBridgePromise.showSingleSelection(
+    const semesterIndex = await window.shiguangBridgePromise.showSingleSelection(
         "选择学期", JSON.stringify(["第一学期", "第二学期"]), 0
     );
     if (semesterIndex === null) return null;
@@ -164,7 +171,7 @@ async function getSelectedSemesterId() {
 
 async function runImportFlow() {
     try {
-        const confirmed = await window.AndroidBridgePromise.showAlert(
+        const confirmed = await window.shiguangBridgePromise.showAlert(
             "导入提示",
             "脚本将获取当前教务系统的课表数据。请确保您已登录。是否继续？",
             "确认并开始"
@@ -173,11 +180,11 @@ async function runImportFlow() {
 
         const semesterId = await getSelectedSemesterId();
         if (!semesterId) {
-            AndroidBridge.showToast("用户取消了学期选择");
+            window.shiguangBridge.showToast("用户取消了学期选择");
             return;
         }
 
-        AndroidBridge.showToast("正在请求教务数据...");
+        window.shiguangBridge.showToast("正在请求教务数据...");
         const response = await fetch("https://jwxt-443.webvpn.upc.edu.cn/jsxsd/xskb/xskb_list.do", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -191,20 +198,20 @@ async function runImportFlow() {
         const finalCourses = parseTimetableToModel(new DOMParser().parseFromString(html, "text/html"));
 
         if (finalCourses.length === 0) {
-            AndroidBridge.showToast("未发现课程数据，请检查该学期是否有课或登录是否过期");
+            window.shiguangBridge.showToast("未发现课程数据，请检查该学期是否有课或登录是否过期");
             return;
         }
         await saveAppConfig();
         await saveAppTimeSlots();
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(finalCourses));
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(finalCourses));
         
-        AndroidBridge.showToast(`成功导入 ${finalCourses.length} 门课程！`);
+        window.shiguangBridge.showToast(`成功导入 ${finalCourses.length} 门课程！`);
 
-        AndroidBridge.notifyTaskCompletion();
+        window.shiguangBridge.notifyTaskCompletion();
 
     } catch (error) {
         console.error(error);
-        AndroidBridge.showToast("异常: " + error.message);
+        window.shiguangBridge.showToast("异常: " + error.message);
     }
 }
 

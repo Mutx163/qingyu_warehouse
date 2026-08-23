@@ -1,10 +1,17 @@
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
+
 // 福建船政交通职业学院(fjcpc.edu.cn)拾光课程表适配脚本
 // 非该大学开发者适配,开发者无法及时发现问题
 // 出现问题请提联系开发者或者提交pr更改,这更加快速
 
 // 引导
 async function promptUserToStart() {
-    return await window.AndroidBridgePromise.showAlert(
+    return await window.shiguangBridgePromise.showAlert(
         "公告",
         "即将开始导入请确保已经登录并跳转到已显示课表位置",
         "好的，开始"
@@ -17,7 +24,7 @@ async function promptUserToStart() {
 async function selectTimeSchedule() {
     const semesters = ["夏季作息", "冬季作息"];
     
-    const selectedIndex = await window.AndroidBridgePromise.showSingleSelection(
+    const selectedIndex = await window.shiguangBridgePromise.showSingleSelection(
         "选择作息时间",
         JSON.stringify(semesters),
         -1
@@ -62,7 +69,7 @@ async function fetchAndParseData() {
     // 自动提取凭证
     const match = document.cookie.match(/Admin-Token=([^;]+)/);
     if (!match) {
-        AndroidBridge.showToast("未发现登录凭证，请登录后重试");
+        window.shiguangBridge.showToast("未发现登录凭证，请登录后重试");
         return null;
     }
     const token = decodeURIComponent(match[1]);
@@ -129,7 +136,7 @@ async function fetchAndParseData() {
             courses: courses
         };
     } catch (e) {
-        AndroidBridge.showToast("数据解析失败: " + e.message);
+        window.shiguangBridge.showToast("数据解析失败: " + e.message);
         return null;
     }
 }
@@ -137,19 +144,19 @@ async function fetchAndParseData() {
 // 编排主流程
 
 async function runImportFlow() {
-    AndroidBridge.showToast("课程导入流程开始...");
+    window.shiguangBridge.showToast("课程导入流程开始...");
 
     // 公告和前置检查
     const alertConfirmed = await promptUserToStart();
     if (!alertConfirmed) {
-        AndroidBridge.showToast("用户取消了导入。");
+        window.shiguangBridge.showToast("用户取消了导入。");
         return;
     }
 
     // 选择作息时间
     const timeSlots = await selectTimeSchedule();
     if (timeSlots === null) {
-        AndroidBridge.showToast("已取消选择作息。");
+        window.shiguangBridge.showToast("已取消选择作息。");
         return;
     }
 
@@ -161,31 +168,31 @@ async function runImportFlow() {
 
     // 保存课表配置
     try {
-        await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify(data.config));
+        await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(data.config));
     } catch (e) {
-        AndroidBridge.showToast("保存配置失败");
+        window.shiguangBridge.showToast("保存配置失败");
         return;
     }
 
     // 课程数据保存
     try {
-        await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(data.courses));
-        AndroidBridge.showToast(`成功抓取 ${data.courses.length} 门课程！`);
+        await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(data.courses));
+        window.shiguangBridge.showToast(`成功抓取 ${data.courses.length} 门课程！`);
     } catch (e) {
-        AndroidBridge.showToast("保存课程数据失败");
+        window.shiguangBridge.showToast("保存课程数据失败");
         return;
     }
 
     // 导入时间段
     try {
-        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
-        AndroidBridge.showToast("作息时间同步成功");
+        await window.shiguangBridgePromise.savePresetTimeSlots(JSON.stringify(timeSlots));
+        window.shiguangBridge.showToast("作息时间同步成功");
     } catch (e) {
         console.error("作息保存失败:", e);
     }
 
-    AndroidBridge.showToast("所有任务已完成！");
-    AndroidBridge.notifyTaskCompletion();
+    window.shiguangBridge.showToast("所有任务已完成！");
+    window.shiguangBridge.notifyTaskCompletion();
 }
 
 runImportFlow();

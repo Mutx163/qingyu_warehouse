@@ -1,935 +1,144 @@
-/**
- * 重庆城市科技学院 · 强智教务适配（API 版）
- *
- * 登录进入教务系统后，在任意页面执行即可：
- *   fetch /cqdxcskjxy_jsxsd/xskb/xskb_list.do
- * 无需先点开「学期理论课表」页面。
- *
- * 实机验证（2026-07）：
- * - 从学生个人中心可成功 GET 课表 HTML
- * - 默认自动使用当前学期（selected option），不弹学期选择/确认框
- * - 仅 URL 带 ?pickSemester=1 时才弹学期选择（调试用）
- * - 课表块结构：div.kbcontent + font[title=老师/上课地点] + 周次在班级 span 内
- *
- * 注意：fetch + DOMParser 得到的是离线 DOM，innerText 往往不按 <br> 换行。
- * 课名/字段解析必须优先用 textContent + 按 <br> 分行，不能依赖 innerText 首行。
- */
-
-/**
- * 若当前页已经是「学期理论课表」且表格有课，直接用当前 document 解析。
- * 这与页面旧版成功路径一致，可避免 fetch 默认学期拿回空表。
- */
-function tryExtractCoursesFromLivePage() {
-  try {
-    if (typeof document === 'undefined') {
-      return [];
-    }
-    const table =
-      document.getElementById('kbtable') ||
-      document.getElementById('timetable') ||
-      document.querySelector('table.table_border') ||
-      document.querySelector('.table_border');
-    if (!table) {
-      return [];
-    }
-    const tableText = table.innerText || table.textContent || '';
-    if (!/星期|周一/.test(tableText)) {
-      return [];
-    }
-    // 有「节」字才像真有课；空课表页不走 live 路径
-    if (!tableText.includes('节')) {
-      return [];
-    }
-    // 关键：live 页必须用旧版 innerText 算法。
-    // extractCoursesFromDoc 优先走 kbcontent HTML，很多格会解析失败且不再回退文本，
-    // 实测会丢掉大半课程；旧版 CQCST_02 整表 innerText 可稳定拿到全部课。
-    return extractCoursesFromLiveTableLikeLegacy(table);
-  } catch (error) {
-    console.warn('[CQCST] live page parse failed', error);
-    return [];
-  }
-}
-
-/**
- * 页面旧版（CQCST_02）同款算法：按 cell.innerText 分行解析。
- * 仅用于已渲染的 live document（innerText 有正常换行）。
- */
-function extractCoursesFromLiveTableLikeLegacy(table) {
-  const courses = [];
-  const courseSet = new Set();
-  const rows = table.querySelectorAll('tr');
-
-  for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
-    const cells = rows[rowIndex].querySelectorAll('td, th');
-    for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
-      const day = 7 - (cells.length - 1 - cellIndex);
-      if (day < 1 || day > 7) {
-        continue;
-      }
-
-      const cell = cells[cellIndex];
-      const blocks = (cell.innerText || '')
-        .split(/-{5,}/)
-        .map((text) => text.trim())
-        .filter(Boolean);
-
-      for (const block of blocks) {
-        if (!block || block === '\u00a0') {
-          continue;
-        }
-
-        let lines = block
-          .split(/\n/)
-          .map((line) => line.trim())
-          .filter(Boolean);
-        if (lines.length < 4) {
-          lines = block
-            .split(/\s+/)
-            .map((line) => line.trim())
-            .filter(Boolean);
-        }
-        if (lines.length < 3) {
-          continue;
-        }
-
-        // 找含「节」的行，再用加固后的周次/节次解析（防班级号污染）
-        const timeLineIndex = lines.findIndex((line) =>
-          parseTimeFieldsFromText(line),
-        );
-        if (timeLineIndex === -1) {
-          continue;
-        }
-
-        const parsedTime = parseTimeFieldsFromText(lines[timeLineIndex]);
-        if (!parsedTime) {
-          continue;
-        }
-
-        const name = lines[0].replace(/\[.*?\]/g, '').trim();
-        if (!name) {
-          continue;
-        }
-
-        let teacher = '未知';
-        for (let index = 1; index < timeLineIndex; index++) {
-          const line = lines[index];
-          if (/^\[[^\]]+\]$/.test(line)) {
-            continue;
-          }
-          if (line.includes('班') || line.includes('选课人数')) {
-            continue;
-          }
-          if (line.includes('节')) {
-            continue;
-          }
-          teacher = line;
-        }
-        const position =
-          timeLineIndex + 1 < lines.length
-            ? lines[timeLineIndex + 1]
-            : '未知地点';
-
-        const weeks = parsedTime.weeks;
-        const startSection = parsedTime.startSection;
-        const endSection = parsedTime.endSection;
-
-        // 与旧版相同的去重键（不含 teacher/position，避免同课被拆成多条）
-        const uniqueKey = [
-          name,
-          day,
-          startSection,
-          endSection,
-          weeks.join(','),
-        ].join('-');
-        if (courseSet.has(uniqueKey)) {
-          continue;
-        }
-        courseSet.add(uniqueKey);
-        courses.push({
-          name,
-          teacher,
-          position,
-          day,
-          startSection,
-          endSection,
-          weeks,
-        });
-      }
-    }
-  }
-
-  return courses;
-}
-
-const XSKB_LIST_PATH = '/cqdxcskjxy_jsxsd/xskb/xskb_list.do';
-
-function ensureBrowserTestBridge() {
-  if (typeof window.AndroidBridgePromise !== 'undefined') {
-    return;
-  }
-  window.AndroidBridgePromise = {
-    showAlert: async () => true,
-    showSingleSelection: async (_title, _itemsJson, defaultIndex = 0) => {
-      const index = Number(defaultIndex);
-      return Number.isFinite(index) ? index : 0;
-    },
-    saveImportedCourses: async (json) => {
-      const courses = JSON.parse(json);
-      console.log('[CQCST] courses =', courses.length, courses);
-      console.table(courses);
-      return true;
-    },
-  };
-  window.AndroidBridge = {
-    showToast: (message) => console.log('[Toast]', message),
-    notifyTaskCompletion: () => console.log('[Done]'),
-  };
-}
-
-function parseWeeks(weeksStr, oddEvenHint) {
-  const weeks = [];
-  if (!weeksStr) {
-    return weeks;
-  }
-  const pure = String(weeksStr).split('(')[0].trim();
-  const oddEven = oddEvenHint || '';
-  pure.split(',').forEach((segment) => {
-    const part = segment.trim();
-    if (!part) {
-      return;
-    }
-    if (part.includes('-')) {
-      const [startRaw, endRaw] = part.split('-');
-      const start = parseInt(startRaw, 10);
-      const end = parseInt(endRaw, 10);
-      if (isNaN(start) || isNaN(end)) {
-        return;
-      }
-      for (let week = start; week <= end; week++) {
-        if (oddEven === '单' && week % 2 === 0) continue;
-        if (oddEven === '双' && week % 2 !== 0) continue;
-        weeks.push(week);
-      }
-      return;
-    }
-    const week = parseInt(part, 10);
-    if (isNaN(week)) {
-      return;
-    }
-    if (oddEven === '单' && week % 2 === 0) {
-      return;
-    }
-    if (oddEven === '双' && week % 2 !== 0) {
-      return;
-    }
-    weeks.push(week);
-  });
-  return [...new Set(weeks)].sort((left, right) => left - right);
-}
-
-/**
- * 解析强智周次节次文本，例如：
- *  14-15(全部)[01-02-03-04节]
- *  7(全部)[01-02节]
- *  1-8(单)[01-02节]
- */
-function parseWeekAndSection(text) {
-  const source = String(text || '').replace(/\u00a0/g, ' ');
-  return parseTimeFieldsFromText(source);
-}
-
-/**
- * 从文本提取周次+节次。
- * 不能用「第一个数字串」当周次：会先吃到班级号（如计科2301班），
- * 导致 weeks 非法/错乱，App 仍可能显示导入 54 门，但当前周课表几乎空白。
- */
-function parseTimeFieldsFromText(text) {
-  const source = String(text || '').replace(/\u00a0/g, ' ');
-  if (!source.includes('节')) {
-    return null;
-  }
-
-  const cleaned = source
-    .replace(
-      /[A-Za-z\u4e00-\u9fa5]*\d{2,}[A-Za-z\u4e00-\u9fa5\d\-]*班(?:级)?/g,
-      ' ',
-    )
-    .replace(/选课人数\s*\d+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // 以 [xx节] 为锚点，向前取最近周次；周次每段限制 1-2 位
-  const anchored = cleaned.match(
-    /(\d{1,2}(?:\s*[-–—,]\s*\d{1,2})*(?:\s*,\s*\d{1,2}(?:\s*[-–—,]\s*\d{1,2})*)*)\s*(?:\((单|双|全部|周|[^\)]*)\))?\s*\[(\d{1,2}(?:\s*[-–—]\s*\d{1,2})*)节\]/,
-  );
-  if (!anchored) {
-    return null;
-  }
-
-  const weeksStr = (anchored[1] || '')
-    .replace(/[–—]/g, '-')
-    .replace(/\s+/g, '');
-  const oddEvenHint = anchored[2] || '';
-  const oddEven =
-    oddEvenHint === '单' || oddEvenHint === '双' ? oddEvenHint : '';
-  const sectionRaw = (anchored[3] || '')
-    .replace(/[–—]/g, '-')
-    .replace(/\s+/g, '');
-  if (!weeksStr || !sectionRaw) {
-    return null;
-  }
-
-  const sectionParts = sectionRaw
-    .split('-')
-    .map((value) => parseInt(value, 10))
-    .filter((value) => !isNaN(value) && value >= 1 && value <= 24);
-  if (!sectionParts.length) {
-    return null;
-  }
-
-  const weeks = parseWeeks(weeksStr, oddEven).filter(
-    (week) => week >= 1 && week <= 30,
-  );
-  if (!weeks.length) {
-    return null;
-  }
-
-  return {
-    weeks,
-    startSection: sectionParts[0],
-    endSection: sectionParts[sectionParts.length - 1],
-  };
-}
-
-function findFontByTitle(root, titles) {
-  const fonts = root.querySelectorAll('font');
-  for (const font of fonts) {
-    const title = (font.getAttribute('title') || '').trim();
-    if (titles.includes(title)) {
-      return font;
-    }
-  }
-  return null;
-}
-
-function pushCourse(courses, courseSet, course) {
-  if (
-    !course.name ||
-    !course.day ||
-    !course.startSection ||
-    !course.weeks ||
-    !course.weeks.length
-  ) {
-    return;
-  }
-  const uniqueKey = [
-    course.name,
-    course.day,
-    course.startSection,
-    course.endSection,
-    course.weeks.join(','),
-    course.teacher || '',
-    course.position || '',
-  ].join('|');
-  if (courseSet.has(uniqueKey)) {
-    return;
-  }
-  courseSet.add(uniqueKey);
-  courses.push(course);
-}
-
-function extractCourseName(blockRoot) {
-  const cleanCandidate = (raw) =>
-    String(raw || '')
-      .replace(/\u00a0/g, ' ')
-      .replace(/\[[^\]]*\]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const looksContaminated = (candidate) => {
-    if (!candidate) return true;
-    // 混入节次/班级/选课等元数据，或异常过长
-    if (/\[.*节\]/.test(candidate) || candidate.includes('选课人数')) {
-      return true;
-    }
-    if (candidate.includes('班') && candidate.length > 12) {
-      return true;
-    }
-    if (candidate.length > 40) {
-      return true;
-    }
-    return false;
-  };
-
-  // 1) 直接文本节点（正常强智结构：课名在第一个 text node）
-  for (const node of blockRoot.childNodes) {
-    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-      const fromTextNode = cleanCandidate(node.textContent);
-      if (fromTextNode && !looksContaminated(fromTextNode)) {
-        return fromTextNode;
-      }
-      break;
-    }
-  }
-
-  // 2) 按 <br> 取第一行（离线 DOM 下 innerText 不可靠）
-  const html = blockRoot.innerHTML || '';
-  const firstHtmlLine = cleanCandidate(
-    html.split(/<br\s*\/?>/i)[0].replace(/<[^>]+>/g, ' '),
-  );
-  if (firstHtmlLine && !looksContaminated(firstHtmlLine)) {
-    return firstHtmlLine;
-  }
-
-  // 3) 最后兜底：整段 textContent 截到时间串之前
-  const fullText = cleanCandidate(blockRoot.textContent || blockRoot.innerText || '');
-  const timeMatch = fullText.match(
-    /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
-  );
-  if (timeMatch && typeof timeMatch.index === 'number' && timeMatch.index > 0) {
-    return cleanCandidate(fullText.slice(0, timeMatch.index));
-  }
-  return firstHtmlLine || fullText;
-}
-
-function parseKbcontentBlock(htmlBlock, day, courses, courseSet) {
-  if (!htmlBlock || !htmlBlock.trim() || htmlBlock.trim() === '&nbsp;') {
-    return;
-  }
-  const temp = document.createElement('div');
-  temp.innerHTML = htmlBlock;
-
-  const name = extractCourseName(temp);
-  const teacherFont = findFontByTitle(temp, ['老师', '教师']);
-  const positionFont = findFontByTitle(temp, ['上课地点', '教室', '教学楼']);
-  const classFont = findFontByTitle(temp, ['班级']);
-  const weekFont = findFontByTitle(temp, ['周次(节次)']);
-
-  // 离线 DOM 用 textContent，避免 innerText 在未布局文档中异常
-  const teacher = teacherFont
-    ? (teacherFont.textContent || teacherFont.innerText || '').trim()
-    : '未知';
-  const position = positionFont
-    ? (positionFont.textContent || positionFont.innerText || '').trim()
-    : '待定';
-
-  // 重庆城市科技：周次/节次通常嵌在「班级」font 的 span 文本中
-  let timeText = '';
-  if (weekFont) {
-    timeText = weekFont.textContent || weekFont.innerText || '';
-  } else if (classFont) {
-    timeText = classFont.textContent || classFont.innerText || '';
-  } else {
-    timeText = temp.textContent || temp.innerText || '';
-  }
-
-  const parsedTime = parseWeekAndSection(timeText);
-  if (!parsedTime) {
-    // font 取时间失败：按 <br> 文本行回退（旧版 innerText 路径）
-    const fallbackLines = String(htmlBlock || '')
-      .split(/<br\s*\/?>/i)
-      .map((line) =>
-        line
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\u00a0/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim(),
-      )
-      .filter(Boolean);
-    if (fallbackLines.length) {
-      // 复用 parseTextCell 的块逻辑：构造伪 cell 太重，直接内联最小回退
-      const joined = fallbackLines.join('\n');
-      const timeParsed = parseWeekAndSection(joined);
-      if (timeParsed && timeParsed.weeks.length) {
-        let fallbackName = (fallbackLines[0] || '')
-          .replace(/\[[^\]]*\]/g, '')
-          .trim();
-        if (fallbackLines.length === 1) {
-          const timeMatch = fallbackLines[0].match(
-            /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
-          );
-          if (timeMatch && typeof timeMatch.index === 'number') {
-            fallbackName = fallbackLines[0]
-              .slice(0, timeMatch.index)
-              .replace(/\[[^\]]*\]/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-          }
-        }
-        let fallbackTeacher = '未知';
-        let fallbackPosition = '待定';
-        const timeLineIndex = fallbackLines.findIndex((line) =>
-          line.includes('节'),
-        );
-        if (timeLineIndex > 0) {
-          for (let index = 1; index < timeLineIndex; index++) {
-            const line = fallbackLines[index];
-            if (/^\[[^\]]+\]$/.test(line)) continue;
-            if (line.includes('班') || line.includes('选课人数')) continue;
-            if (line.includes('节')) continue;
-            fallbackTeacher = line;
-          }
-        }
-        if (timeLineIndex >= 0 && timeLineIndex + 1 < fallbackLines.length) {
-          const maybePosition = fallbackLines[timeLineIndex + 1];
-          if (
-            maybePosition &&
-            !maybePosition.includes('节') &&
-            !maybePosition.includes('班')
-          ) {
-            fallbackPosition = maybePosition;
-          }
-        }
-        if (fallbackName) {
-          pushCourse(courses, courseSet, {
-            name: fallbackName,
-            teacher: fallbackTeacher,
-            position: fallbackPosition,
-            day,
-            startSection: timeParsed.startSection,
-            endSection: timeParsed.endSection,
-            weeks: timeParsed.weeks,
-          });
-        }
-      }
-    }
-    return;
-  }
-
-  // 若课名仍混入老师/地点（无 <br> 粘连时），剥离已识别字段
-  let cleanName = (name || '').trim();
-  // 课名异常：含节次/过长 → 强制按 <br> 第一行重取
-  if (
-    !cleanName ||
-    cleanName.includes('节') ||
-    cleanName.includes('选课人数') ||
-    cleanName.length > 40
-  ) {
-    const firstLine = String(htmlBlock || '')
-      .split(/<br\s*\/?>/i)[0]
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\u00a0/g, ' ')
-      .replace(/\s+/g, ' ')
-      .replace(/\[[^\]]*\]/g, ' ')
-      .trim();
-    if (firstLine && firstLine.length < cleanName.length) {
-      cleanName = firstLine;
-    }
-  }
-  // 剥离已识别的老师/地点（可在中间或末尾）
-  if (teacher && teacher !== '未知' && cleanName.includes(teacher)) {
-    cleanName = cleanName.split(teacher)[0].trim();
-  }
-  if (position && position !== '待定' && cleanName.includes(position)) {
-    cleanName = cleanName.split(position)[0].trim();
-  }
-  // 剥离时间串及之后内容
-  cleanName = cleanName
-    .replace(/[\d,\-]+\s*(?:\((?:单|双|全部|周)\))?\s*\[[\d\-]+节\].*$/, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  // 剥离「计科2301班 / xxx班 选课人数」一类尾巴
-  const classMetaIndex = cleanName.search(
-    /[\u4e00-\u9fa5A-Za-z0-9]*\d{2,}[\u4e00-\u9fa5A-Za-z0-9]*班/,
-  );
-  if (classMetaIndex > 0) {
-    cleanName = cleanName.slice(0, classMetaIndex).trim();
-  } else if (cleanName.includes('选课人数')) {
-    cleanName = cleanName.split('选课人数')[0].trim();
-  }
-  if (!cleanName) {
-    return;
-  }
-
-  pushCourse(courses, courseSet, {
-    name: cleanName,
-    teacher,
-    position,
-    day,
-    startSection: parsedTime.startSection,
-    endSection: parsedTime.endSection,
-    weeks: parsedTime.weeks,
-  });
-}
-
-function parseTextCell(cell, day, courses, courseSet) {
-  // 优先用 innerHTML 按 <br> 分行。DOMParser 离线文档的 innerText 常无换行，
-  // 整格会变成 lines[0]，导致课名塞进老师/班级/地点。
-  const cellHtml = (cell.innerHTML || '').replace(/\u00a0/g, ' ');
-  const hasSection =
-    cellHtml.includes('节') ||
-    (cell.textContent || '').includes('节') ||
-    (cell.innerText || '').includes('节');
-  if (!hasSection) {
-    return;
-  }
-
-  const htmlBlocks = cellHtml.split(/-{5,}/);
-  htmlBlocks.forEach((blockHtml) => {
-    let lines = blockHtml
-      .split(/<br\s*\/?>/i)
-      .map((line) =>
-        line
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim(),
-      )
-      .filter(Boolean);
-
-    // 无 <br> 时再尝试 textContent / innerText 的真实换行
-    if (lines.length < 2) {
-      const rawText = (
-        cell.textContent ||
-        cell.innerText ||
-        ''
-      )
-        .replace(/\u00a0/g, ' ')
-        .trim();
-      const textBlocks = rawText.split(/-{5,}/);
-      // 当前块对应的文本：粗略用整段回退
-      const textBlock = textBlocks.length === htmlBlocks.length
-        ? textBlocks[htmlBlocks.indexOf(blockHtml)] || rawText
-        : rawText;
-      lines = textBlock
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (lines.length < 3) {
-        const spaced = textBlock
-          .split(/\s{2,}/)
-          .map((line) => line.trim())
-          .filter(Boolean);
-        if (spaced.length > lines.length) {
-          lines = spaced;
-        }
-      }
-    }
-
-    if (!lines.length) {
-      return;
-    }
-
-    const parsedTime = parseWeekAndSection(lines.join('\n'));
-    if (!parsedTime) {
-      return;
-    }
-
-    let name = (lines[0] || '').replace(/\[[^\]]*\]/g, '').trim();
-    // 单行粘连：课名取时间串之前
-    if (lines.length === 1) {
-      const timeMatch = lines[0].match(
-        /([\d,\-]+)\s*(?:\((单|双|全部|周)\))?\s*\[([\d\-]+)节\]/,
-      );
-      if (timeMatch && typeof timeMatch.index === 'number') {
-        name = lines[0]
-          .slice(0, timeMatch.index)
-          .replace(/\[[^\]]*\]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-      }
-    }
-
-    let teacher = '未知';
-    let position = '待定';
-    const timeLineIndex = lines.findIndex(
-      (line) => line.includes('节') || parseWeekAndSection(line),
-    );
-    if (timeLineIndex > 0) {
-      for (let index = 1; index < timeLineIndex; index++) {
-        const line = lines[index];
-        if (/^\[[^\]]+\]$/.test(line)) {
-          continue;
-        }
-        if (line.includes('班') || line.includes('选课人数')) {
-          continue;
-        }
-        if (line.includes('节')) {
-          continue;
-        }
-        teacher = line;
-      }
-    }
-    if (timeLineIndex >= 0 && timeLineIndex + 1 < lines.length) {
-      const maybePosition = lines[timeLineIndex + 1];
-      if (
-        maybePosition &&
-        !maybePosition.includes('节') &&
-        !maybePosition.includes('班') &&
-        !maybePosition.includes('选课人数')
-      ) {
-        position = maybePosition;
-      }
-    }
-
-    if (teacher && teacher !== '未知' && name.endsWith(teacher)) {
-      name = name.slice(0, -teacher.length).trim();
-    }
-    if (position && position !== '待定' && name.endsWith(position)) {
-      name = name.slice(0, -position.length).trim();
-    }
-    if (!name) {
-      return;
-    }
-
-    pushCourse(courses, courseSet, {
-      name,
-      teacher,
-      position,
-      day,
-      startSection: parsedTime.startSection,
-      endSection: parsedTime.endSection,
-      weeks: parsedTime.weeks,
-    });
-  });
-}
-
-function extractCoursesFromDoc(doc) {
-  const table =
-    doc.getElementById('kbtable') ||
-    doc.getElementById('timetable') ||
-    doc.querySelector('table.table_border') ||
-    doc.querySelector('.table_border') ||
-    Array.from(doc.querySelectorAll('table')).find((item) =>
-      /星期|周一/.test(
-        item.textContent || item.innerText || '',
-      ),
-    );
-
-  if (!table) {
-    throw new Error('接口返回中未找到课表表格，请确认已登录教务系统');
-  }
-
-  const courses = [];
-  const courseSet = new Set();
-  const rows = table.querySelectorAll('tr');
-
-  for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
-    const cells = rows[rowIndex].querySelectorAll('td, th');
-    for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
-      // 倒数第 7 列=周一 ... 倒数第 1 列=周日（兼容左侧节次列）
-      const day = 7 - (cells.length - 1 - cellIndex);
-      if (day < 1 || day > 7) {
-        continue;
-      }
-
-      const cell = cells[cellIndex];
-      const kbBlocks = cell.querySelectorAll('div.kbcontent');
-      const beforeCount = courses.length;
-
-      // 优先文本解析（与页面旧版一致，覆盖率高）。
-      // 若先走 kbcontent 且只解析到部分块，会跳过文本回退，导致丢大半课。
-      parseTextCell(cell, day, courses, courseSet);
-
-      if (courses.length === beforeCount && kbBlocks.length) {
-        kbBlocks.forEach((div) => {
-          const rawHtml = (div.innerHTML || '').trim();
-          rawHtml.split(/-{5,}/).forEach((block) => {
-            parseKbcontentBlock(block, day, courses, courseSet);
-          });
-        });
-      }
-    }
-  }
-
-  return courses;
-}
-
-async function fetchTimetableDoc(semesterValue) {
-  let response;
-  if (semesterValue) {
-    const body = new URLSearchParams({
-      xnxq01id: semesterValue,
-      zc: '',
-      demo: '',
-      jx0404id: '',
-      cj0701id: '',
-    });
-    response = await fetch(XSKB_LIST_PATH, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-      credentials: 'include',
-    });
-  } else {
-    response = await fetch(XSKB_LIST_PATH, {
-      method: 'GET',
-      credentials: 'include',
-    });
-  }
-
-  if (!response.ok) {
-    throw new Error('课表请求失败 HTTP ' + response.status);
-  }
-
-  const html = await response.text();
-  if (
-    html.includes('用户登录') &&
-    !html.includes('kbtable') &&
-    !html.includes('星期')
-  ) {
-    throw new Error('登录已失效，请重新登录教务后再导入');
-  }
-  return new DOMParser().parseFromString(html, 'text/html');
-}
-
-function readSemesterSelect(doc) {
-  const selectElem =
-    doc.getElementById('xnxq01id') ||
-    doc.querySelector('select[name="xnxq01id"]');
-  if (!selectElem) {
-    return null;
-  }
-
-  const labels = [];
-  const values = [];
-  const options = Array.from(selectElem.querySelectorAll('option'));
-  options.forEach((option) => {
-    labels.push((option.innerText || option.textContent || '').trim());
-    values.push((option.value || '').trim());
-  });
-  if (!labels.length) {
-    return null;
-  }
-
-  let defaultIndex = 0;
-  const byAttribute = options.findIndex(
-    (option) => option.hasAttribute('selected') || option.selected === true,
-  );
-  const bySelectedIndex =
-    typeof selectElem.selectedIndex === 'number' && selectElem.selectedIndex >= 0
-      ? selectElem.selectedIndex
-      : -1;
-  const currentValue = (selectElem.value || '').trim();
-  const byValue = currentValue
-    ? values.findIndex((value) => value === currentValue)
-    : -1;
-
-  if (byAttribute >= 0) {
-    defaultIndex = byAttribute;
-  } else if (bySelectedIndex >= 0) {
-    defaultIndex = bySelectedIndex;
-  } else if (byValue >= 0) {
-    defaultIndex = byValue;
-  }
-
-  return { labels, values, defaultIndex };
-}
-
-/**
- * 快捷导入场景默认使用当前学期，不弹窗。
- * 仅当 URL 带 ?pickSemester=1 时才让用户选择（手动调试用）。
- */
-async function maybeSelectSemester(doc) {
-  const semesterInfo = readSemesterSelect(doc);
-  if (!semesterInfo) {
-    return { doc, changed: false };
-  }
-
-  const { labels, values, defaultIndex } = semesterInfo;
-  const allowPick =
-    typeof location !== 'undefined' &&
-    /(?:^|[?&])pickSemester=1(?:&|$)/.test(location.search || '');
-
-  if (
-    !allowPick ||
-    typeof window.AndroidBridgePromise?.showSingleSelection !== 'function'
-  ) {
-    return {
-      doc,
-      changed: false,
-      semesterLabel: labels[defaultIndex],
-    };
-  }
-
-  const selectedIndex = await window.AndroidBridgePromise.showSingleSelection(
-    '请选择要导入的学期',
-    JSON.stringify(labels),
-    defaultIndex,
-  );
-
-  // Bridge 可能返回 index 或选项文本
-  let resolvedIndex = defaultIndex;
-  if (typeof selectedIndex === 'number' && selectedIndex >= 0) {
-    resolvedIndex = selectedIndex;
-  } else if (typeof selectedIndex === 'string') {
-    const byValue = values.indexOf(selectedIndex);
-    const byLabel = labels.indexOf(selectedIndex);
-    if (byValue >= 0) resolvedIndex = byValue;
-    else if (byLabel >= 0) resolvedIndex = byLabel;
-  }
-
-  if (resolvedIndex === defaultIndex) {
-    return {
-      doc,
-      changed: false,
-      semesterLabel: labels[resolvedIndex],
-    };
-  }
-
-  // 过程中不再 toast，进度由 App 快捷导入 UI 展示。
-  const nextDoc = await fetchTimetableDoc(values[resolvedIndex]);
-  return {
-    doc: nextDoc,
-    changed: true,
-    semesterLabel: labels[resolvedIndex],
-  };
-}
+/* qingyu-compat-shim v2:auto-generated, do not edit */
+(function () {
+  if (typeof window === 'undefined') return;
+  if (!window.shiguangBridge && window.AndroidBridge) window.shiguangBridge = window.AndroidBridge;
+  if (!window.shiguangBridgePromise && window.AndroidBridgePromise) window.shiguangBridgePromise = window.AndroidBridgePromise;
+})();
 
 async function runImportFlow() {
-  ensureBrowserTestBridge();
+    // 兼容电脑端测试
+    if (typeof window.shiguangBridgePromise === 'undefined') {
+        window.shiguangBridgePromise = {
+            showAlert: async () => true,
+            saveImportedCourses: async (json) => {
+                console.log("===============================");
+                console.log("🎉 【解析成功】以下是整理好的课表数据：");
+                console.table(JSON.parse(json)); 
+                console.log("===============================");
+                alert("抓取成功！请在 F12 控制台查看具体的课程数据格式。");
+                return true;
+            }
+        };
+        window.shiguangBridge = {
+            showToast: (msg) => console.log("[系统提示] " + msg),
+            notifyTaskCompletion: () => console.log("[流程结束] 任务已完成并通知APP")
+        };
+    }
 
-  try {
-    // 1) 当前页已是课表且有数据 → 与页面旧版同一路径（日志已证明可解析 54 门）
-    let courses = tryExtractCoursesFromLivePage();
+    window.shiguangBridge.showToast("开始提取课表数据...");
 
-    // 2) 否则 fetch 课表页（任意教务页快捷导入）
-    if (!courses.length) {
-      let doc = await fetchTimetableDoc();
-      const semesterResult = await maybeSelectSemester(doc);
-      if (semesterResult.cancelled) {
-        AndroidBridge.showToast('已取消导入');
+    const table = document.getElementById('kbtable') || document.querySelector('.table_border') || document.querySelector('table');
+    if (!table || !table.innerText.includes('星期')) {
+        window.shiguangBridge.showToast("没找到课表！请确保您当前在“学期理论课表”页面。");
         return;
-      }
-      doc = semesterResult.doc;
-      courses = extractCoursesFromDoc(doc);
-
-      // 3) GET 默认学期可能空表：用页面 selected 学期再 POST 一次
-      if (!courses.length) {
-        const semesterInfo = readSemesterSelect(doc);
-        if (
-          semesterInfo &&
-          semesterInfo.values[semesterInfo.defaultIndex]
-        ) {
-          const semesterValue = semesterInfo.values[semesterInfo.defaultIndex];
-          const semesterDoc = await fetchTimetableDoc(semesterValue);
-          courses = extractCoursesFromDoc(semesterDoc);
-        }
-      }
     }
 
-    if (!courses.length) {
-      AndroidBridge.showToast('未解析到课程，请换学期试试或确认本学期有课');
-      return;
-    }
-
-    // 不弹「正在导入…」进度 toast，避免与 App 完成弹窗叠层。
-    // 也不再弹确认框（宏回放无录制 confirm 时会误当成取消）。
-
-    const saved = await window.AndroidBridgePromise.saveImportedCourses(
-      JSON.stringify(courses),
+    const alertConfirmed = await window.shiguangBridgePromise.showAlert(
+        "强智教务解析",
+        "已检测到课表页面，是否提取数据并导入？",
+        "确认导入"
     );
-    if (!saved) {
-      AndroidBridge.showToast('保存课程失败');
-      return;
-    }
+    if (!alertConfirmed) return;
 
-    // 成功结果由 App 完成弹窗展示，这里不再 toast，避免与「导入完成」sheet 叠两层。
-    AndroidBridge.notifyTaskCompletion();
-  } catch (error) {
-    const message = error && error.message ? error.message : String(error);
-    AndroidBridge.showToast('导入失败: ' + message);
-    console.error(error);
-  }
+    try {
+        let courses = [];
+        let courseSet = new Set(); 
+        let rows = table.querySelectorAll('tr');
+
+        // 遍历课表每一行（跳过第一行的表头）
+        for (let i = 1; i < rows.length; i++) {
+            // 【关键修复1】同时获取 th 和 td，防止错位
+            let cells = rows[i].querySelectorAll('td, th'); 
+            
+            for (let j = 0; j < cells.length; j++) {
+                let cell = cells[j];
+                
+                // 【关键修复2】逆向计算星期几：倒数第7列永远是周一，倒数第1列永远是周日
+                // 这能完美解决强智系统左侧节次列导致的数据错位问题
+                let day = 7 - (cells.length - 1 - j);
+                if (day < 1 || day > 7) continue; // 如果算出来不是1-7，说明是左侧的节次列，跳过
+
+                let blocks = cell.innerText.split(/-{5,}/).map(t => t.trim()).filter(t => t);
+
+                for (let block of blocks) {
+                    if (!block || block === ' ' || block === '') continue;
+                    
+                    let lines = block.split(/\n/).map(l => l.trim()).filter(l => l);
+                    if(lines.length < 4) {
+                        lines = block.split(/\s+/).map(l => l.trim()).filter(l => l);
+                    }
+                    if (lines.length < 3) continue;
+
+                    let name = lines[0].replace(/\[.*?\]/g, '').trim();
+                    let teacher = lines[1] || "未知";
+
+                    let timeRegex = /([\d\-,]+)(?:\((单|双|.*?)\))?.*?\[([\d\-]+)节\]/;
+                    let timeLineIdx = lines.findIndex(l => timeRegex.test(l));
+                    if (timeLineIdx === -1) continue;
+
+                    let match = lines[timeLineIdx].match(timeRegex);
+                    let weeksStr = match[1]; 
+                    let oddEven = match[2];  
+                    let sectionsStr = match[3]; 
+
+                    let position = (timeLineIdx + 1 < lines.length) ? lines[timeLineIdx + 1] : "未知地点";
+
+                    let weeks = [];
+                    let weekParts = weeksStr.split(',');
+                    for (let wp of weekParts) {
+                        if (wp.includes('-')) {
+                            let parts = wp.split('-');
+                            let start = parseInt(parts[0]);
+                            let end = parseInt(parts[1]);
+                            for (let w = start; w <= end; w++) {
+                                if (oddEven === '单' && w % 2 === 0) continue;
+                                if (oddEven === '双' && w % 2 !== 0) continue;
+                                weeks.push(w);
+                            }
+                        } else {
+                            weeks.push(parseInt(wp));
+                        }
+                    }
+
+                    let secParts = sectionsStr.split('-');
+                    let startSection = parseInt(secParts[0]);
+                    let endSection = parseInt(secParts[secParts.length - 1]);
+
+                    let uid = `${name}-${day}-${startSection}-${endSection}-${weeks.join(',')}`;
+                    if (!courseSet.has(uid)) {
+                        courseSet.add(uid);
+                        courses.push({
+                            name: name,
+                            teacher: teacher,
+                            position: position,
+                            day: day,
+                            startSection: startSection,
+                            endSection: endSection,
+                            weeks: weeks
+                        });
+                    }
+                }
+            }
+        }
+
+        if (courses.length === 0) {
+            window.shiguangBridge.showToast("没有抓取到数据，可能当前表格为空。");
+            return;
+        }
+
+        window.shiguangBridge.showToast(`提取成功，共发现 ${courses.length} 门课程，正在保存...`);
+        
+        const saveResult = await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
+        
+        if (saveResult) {
+            window.shiguangBridge.showToast("导入大功告成！");
+            window.shiguangBridge.notifyTaskCompletion(); 
+        }
+
+    } catch (error) {
+        console.error("解析过程中发生错误:", error);
+        window.shiguangBridge.showToast("解析出错啦: " + error.message);
+    }
 }
 
 runImportFlow();
