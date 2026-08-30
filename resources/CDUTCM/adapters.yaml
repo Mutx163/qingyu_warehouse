@@ -1,0 +1,17 @@
+adapters:
+  - adapter_id: "CDUTCM_01"
+    adapter_name: "成都中医药大学教务"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "cdutcm_01.js"
+    import_url: "https://jwweb.cdutcm.edu.cn/"
+    maintainer: "wwwhyDB"
+    description: |
+      成都中医药大学教务系统适配。
+      系统厂商：广州乘方科技有限公司（CFKJ / entss）。
+      登录方式：密码登录（AES-128-ECB-Pkcs7 加密密码，密钥=验证码×4）。
+      课表数据接口：/xsgrkbcx!xsAllKbList.action?xnxqdm=YYYYNN
+      课表数据嵌入 HTML 的 var kbxx = [...] JSON 数组。
+      已实现：课程提取（含 jcdm2=00 早读 / 班分子[N-M] / 多教师多地点 / 单双周）。
+      时间模板：脚本顶部 TIME_SLOTS 常量（13 项含早读 08:00-08:20）。
+      学期配置：总周数 22；开始日期运行时询问用户（默认 2026-08-31）。
+      暂未实现：必修/选修识别（数据中未见显式标记）。
