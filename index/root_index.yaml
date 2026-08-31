@@ -153,6 +153,11 @@ schools:
     initial: "F"
     resource_folder: "FJCPC"
 
+  - id: "FAFU"
+    name: "福建农林大学"
+    initial: "F"
+    resource_folder: "FAFU"
+
   - id: "FOSU"
     name: "佛山大学"
     initial: "F"
@@ -182,6 +187,11 @@ schools:
     name: "南京师范大学"
     initial: "N"
     resource_folder: "NJNU"
+
+  - id: "NJUPT"
+    name: "南京邮电大学"
+    initial: "N"
+    resource_folder: "NJUPT"
 
   - id: "XMCU"
     name: "厦门城市职业学院"
@@ -312,6 +322,11 @@ schools:
     name: "天津城建大学"
     initial: "T"
     resource_folder: "TCU"
+
+  - id: "TUST"
+    name: "天津科技大学"
+    initial: "T"
+    resource_folder: "TUST"
 
   - id: "SCUT"
     name: "华南理工大学"
@@ -767,13 +782,34 @@ schools:
     name: "郑州汽车工程职业学院"
     initial: "Z"
     resource_folder: "ZZVCAE"
-  
+
   - id: "LNU"
     name: "辽宁大学"
     initial: "L"
     resource_folder: "LNU"
-    
+
   - id: "HNIE"
     name: "湖南工程学院"
     initial: "H"
-    resource_folder: "HNIE"    
+    resource_folder: "HNIE"
+
+  - id: "CQIE"
+    name: "重庆工程学院"
+    initial: "C"
+    resource_folder: "CQIE"
+
+  - id: "AUFE"
+    name: "安徽财经大学"
+    initial: "A"
+    resource_folder: "AUFE"
+
+  - id: "GZMTU"
+    name: "广州航海学院"
+    initial: "G"
+    resource_folder: "GZMTU"
+    
+  - id: "SWU"
+    name: "西南大学"
+    initial: "X"
+    resource_folder: "SWU"
+    
