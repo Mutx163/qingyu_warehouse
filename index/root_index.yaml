@@ -957,3 +957,8 @@ schools:
     name: "河南理工大学"
     initial: "H"
     resource_folder: "HPU"
+
+  - id: "MYSY"
+    name: "绵阳师范学院"
+    initial: "M"
+    resource_folder: "MYSY"
