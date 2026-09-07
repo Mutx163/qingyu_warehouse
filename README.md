@@ -19,6 +19,23 @@
 
 - <https://github.com/Mutx163/mikcb>
 
+## 获取仓库（国内镜像加速）
+
+按网络环境选择克隆地址：
+
+```bash
+# 国内网络：GitCode 镜像（main 更新后自动同步）
+git clone https://gitcode.com/mutx/qingyu_warehouse.git
+
+# 国际网络 / 以最新内容为准：GitHub 主仓库
+git clone https://github.com/Mutx163/qingyu_warehouse.git
+```
+
+说明：
+
+- GitCode 镜像由 GitHub Actions 在 `main` 每次更新后自动推送，正常情况下几分钟内与 GitHub 保持一致
+- 镜像仅用于拉取；提交 Issue、PR 仍请前往 GitHub 主仓库
+
 ## 建议阅读顺序
 
 首次参与时，不建议直接修改 `index/root_index.yaml`。建议按以下顺序阅读：
