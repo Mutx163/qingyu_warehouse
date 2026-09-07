@@ -1,0 +1,33 @@
+name: GitCode Mirror Sync
+
+# 国内拉取加速：把 main 分支与全部 tag 同步到 GitCode 镜像仓库。
+# 与课程表软件仓库（mikcb）同一方案：nvdacn/sync_to_gitcode 可复用工作流。
+# 首次启用前的一次性配置（与 mikcb 完全一致）：
+#   1. 在 GitCode 上先手动创建空仓库（git push 不会自动建仓），
+#      默认路径 gitcode.com/Mutx163/qingyu_warehouse；
+#      如 GitCode 上的命名空间不同，在 GitHub Actions Variables 里加 GITCODE_REPOSITORY=<用户名>/qingyu_warehouse。
+#   2. GitHub 仓库 Settings -> Secrets and variables -> Actions：
+#      Variable GITCODE_USERNAME = GitCode 用户名（不存在时本工作流自动跳过，Fork 无需配置）；
+#      Secret  GITCODE_TOKEN    = GitCode 个人访问令牌。
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: gitcode-sync
+  cancel-in-progress: false
+
+jobs:
+  gitcode-push:
+    name: Sync code to GitCode
+    if: ${{ vars.GITCODE_USERNAME }}
+    permissions:
+      contents: read
+    uses: nvdacn/sync_to_gitcode/.github/workflows/PushToGitCode.yaml@18b70112d0e62260bc54085028e5510bbc6323b2 # sync_to_gitcode@master
+    with:
+      default_branch: main
+      gitcode_username: ${{ vars.GITCODE_USERNAME }}
+    secrets:
+      GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
