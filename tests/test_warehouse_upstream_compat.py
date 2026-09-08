@@ -12,6 +12,7 @@ from warehouse_upstream_compat import (  # noqa: E402
     ValidationIssue,
     ValidationReport,
     apply_v2_bridge_shim,
+    parse_index_maps,
     validate_adapter_script,
     validate_index_compatibility,
     validate_protected_paths,
@@ -19,9 +20,12 @@ from warehouse_upstream_compat import (  # noqa: E402
 )
 from sync_upstream import (  # noqa: E402
     SyncPlan,
+    extract_school_blocks,
     filter_adapters_yaml_blocks,
+    merge_school_blocks_into_index,
     parse_asset_js_path,
     quarantine_blocked_schools,
+    remove_school_blocks,
 )
 from warehouse_upstream_compat import validate_adapter_folder  # noqa: E402
 
@@ -47,7 +51,8 @@ class WarehouseUpstreamCompatTest(unittest.TestCase):
         self.assertFalse(report.ok)
         self.assertEqual(report.blocking[0].code, "protected_path")
 
-    def test_blocks_local_only_schools(self) -> None:
+    def test_allows_local_only_schools(self) -> None:
+        """本地独有学校不应阻断同步：条目级合并会保留它们，不再整表替换丢数据。"""
         local = '''
 schools:
   - id: "QINGYU_ONLY"
@@ -67,8 +72,90 @@ schools:
     resource_folder: "CQU"
 '''
         report = validate_index_compatibility(local, upstream)
-        self.assertFalse(report.ok)
-        self.assertEqual(report.blocking[0].code, "local_only_school")
+        self.assertTrue(report.ok)
+        self.assertEqual(report.blocking, [])
+
+    def test_extract_and_merge_preserve_local_only_schools(self) -> None:
+        upstream = (
+            "schools:\n"
+            '  - id: "AAA"\n'
+            '    name: "A校"\n'
+            '    initial: "A"\n'
+            '    resource_folder: "AAA"\n'
+            "\n"
+            '  - id: "CQU"\n'
+            '    name: "重庆大学"\n'
+            '    initial: "C"\n'
+            '    resource_folder: "CQU"\n'
+            "\n"
+            '  - id: "ZZU"\n'
+            '    name: "Z校"\n'
+            '    initial: "Z"\n'
+            '    resource_folder: "ZZU"\n'
+        )
+        local = (
+            "schools:\n"
+            '  - id: "CQU"\n'
+            '    name: "重庆大学"\n'
+            '    initial: "C"\n'
+            '    resource_folder: "CQU"\n'
+            "\n"
+            '  - id: "CCOLLEGE"\n'
+            '    name: "本地C校"\n'
+            '    initial: "C"\n'
+            '    resource_folder: "CCOLLEGE"\n'
+            "\n"
+            '  - id: "MYSY"\n'
+            '    name: "绵阳师范学院"\n'
+            '    initial: "M"\n'
+            '    resource_folder: "MYSY"\n'
+        )
+        blocks = extract_school_blocks(local, ["CCOLLEGE", "MYSY"])
+        self.assertEqual(set(blocks), {"CCOLLEGE", "MYSY"})
+
+        merged = merge_school_blocks_into_index(upstream, blocks)
+        ids, folders = parse_index_maps(merged)
+        self.assertEqual(
+            ids,
+            {"AAA", "CQU", "ZZU", "CCOLLEGE", "MYSY"},
+        )
+        self.assertEqual(folders["CCOLLEGE"], "CCOLLEGE")
+        self.assertEqual(folders["MYSY"], "MYSY")
+
+        lines = merged.splitlines()
+        cqu_line = next(i for i, l in enumerate(lines) if '"CQU"' in l)
+        ccollege_line = next(i for i, l in enumerate(lines) if '"CCOLLEGE"' in l)
+        mysy_line = next(i for i, l in enumerate(lines) if '"MYSY"' in l)
+        zz_line = next(i for i, l in enumerate(lines) if '"ZZU"' in l)
+        # 同 initial 组内插到组首，缺组追加末尾
+        self.assertLess(ccollege_line, cqu_line)
+        self.assertGreater(mysy_line, zz_line)
+        self.assertTrue(merged.endswith("\n"))
+
+    def test_remove_school_blocks_keeps_other_entries(self) -> None:
+        text = (
+            "schools:\n"
+            '  - id: "AAA"\n'
+            '    name: "A校"\n'
+            '    initial: "A"\n'
+            '    resource_folder: "AAA"\n'
+            "\n"
+            '  - id: "BAD"\n'
+            '    name: "被隔离"\n'
+            '    initial: "B"\n'
+            '    resource_folder: "BAD"\n'
+            "\n"
+            '  - id: "CQU"\n'
+            '    name: "重庆大学"\n'
+            '    initial: "C"\n'
+            '    resource_folder: "CQU"\n'
+        )
+        cleaned = remove_school_blocks(text, ["BAD"])
+        ids, _folders = parse_index_maps(cleaned)
+        self.assertEqual(ids, {"AAA", "CQU"})
+        self.assertNotIn('"BAD"', cleaned)
+        # 条目间恰好一个空行
+        self.assertIn('resource_folder: "AAA"\n\n  - id: "CQU"', cleaned)
 
     def test_blocks_resource_folder_change(self) -> None:
         local = '''

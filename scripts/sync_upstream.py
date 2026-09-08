@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Sync qingyu_warehouse from upstream shiguang_warehouse with compatibility checks."""
+"""Sync qingyu_warehouse from upstream shiguang_warehouse with compatibility checks.
+
+索引更新采用条目级合并：检出上游 root_index.yaml 后，剔除被隔离学校的条目、
+插回本地独有学校条目（按 initial 分组），并在落盘前校验合并结果，
+保证整表替换不会丢失本地学校（merge_index_after_checkout）。
+"""
 
 from __future__ import annotations
 
@@ -377,6 +382,171 @@ def checkout_upstream_paths(warehouse_dir: Path, paths: list[str]) -> None:
     run_git(["checkout", UPSTREAM_REF, "--", *paths], warehouse_dir)
 
 
+def _strip_trailing_blank_lines(lines: list[str]) -> list[str]:
+    end = len(lines)
+    while end > 0 and not lines[end - 1].strip():
+        end -= 1
+    return lines[:end]
+
+
+def extract_school_blocks(yaml_text: str, school_ids: list[str]) -> dict[str, list[str]]:
+    """从索引文本提取指定学校条目的行块（不含块尾空行），保持原有顺序。"""
+    wanted = set(school_ids)
+    blocks: dict[str, list[str]] = {}
+    current_id: str | None = None
+    block: list[str] | None = None
+
+    def _flush() -> None:
+        nonlocal current_id, block
+        if current_id in wanted and block:
+            blocks[current_id] = _strip_trailing_blank_lines(block)
+        current_id = None
+        block = None
+
+    for line in yaml_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- id:"):
+            _flush()
+            match = ID_PATTERN.search(stripped)
+            current_id = match.group(1) if match else None
+            block = [line]
+        elif block is None:
+            continue
+        elif line and not line[0].isspace():
+            # 顶层键/注释：schools 列表结束
+            _flush()
+        else:
+            block.append(line)
+    _flush()
+    return blocks
+
+
+def remove_school_blocks(yaml_text: str, school_ids: list[str]) -> str:
+    """从索引文本删除指定学校条目块，并保持条目间恰好一个空行分隔。"""
+    if not school_ids:
+        return yaml_text
+    drop = set(school_ids)
+    kept: list[str] = []
+    skipping = False
+    for line in yaml_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- id:"):
+            match = ID_PATTERN.search(stripped)
+            will_skip = bool(match and match.group(1) in drop)
+            if will_skip:
+                while kept and not kept[-1].strip():
+                    kept.pop()
+            else:
+                if skipping and kept and kept[-1].strip():
+                    kept.append("")
+                kept.append(line)
+            skipping = will_skip
+            continue
+        if skipping:
+            continue
+        kept.append(line)
+    text = "\n".join(kept)
+    if yaml_text.endswith("\n") and not text.endswith("\n"):
+        text += "\n"
+    return text
+
+
+def _initial_of_block(block: list[str]) -> str:
+    for line in block:
+        stripped = line.strip()
+        if stripped.startswith("initial:"):
+            return stripped.split(":", 1)[1].strip().strip('"')
+    return ""
+
+
+def _entry_initials(lines: list[str]) -> dict[int, str]:
+    """返回 {条目起始行号: initial}，按文件顺序。"""
+    initials: dict[int, str] = {}
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("- id:"):
+            continue
+        initial = ""
+        for follow in lines[i + 1 : i + 6]:
+            follow_stripped = follow.strip()
+            if follow_stripped.startswith("- id:"):
+                break
+            if follow_stripped.startswith("initial:"):
+                initial = follow_stripped.split(":", 1)[1].strip().strip('"')
+                break
+        initials[i] = initial
+    return initials
+
+
+def merge_school_blocks_into_index(upstream_text: str, blocks: dict[str, list[str]]) -> str:
+    """把本地独有学校条目插回索引文本：同 initial 组插到组内首位，缺组则追加末尾。"""
+    if not blocks:
+        return upstream_text
+    lines = upstream_text.splitlines()
+    for block in blocks.values():
+        initial = _initial_of_block(block)
+        target = next(
+            (idx for idx, ini in _entry_initials(lines).items() if ini == initial),
+            None,
+        )
+        if target is None:
+            if lines and lines[-1].strip():
+                lines.extend(["", *block])
+            else:
+                lines.extend(block)
+        else:
+            lines[target:target] = [*block, ""]
+    text = "\n".join(lines)
+    if upstream_text.endswith("\n") and not text.endswith("\n"):
+        text += "\n"
+    return text
+
+
+def merge_index_after_checkout(
+    warehouse_dir: Path,
+    pre_checkout_text: str,
+    local_only: list[str],
+    drop_ids: list[str],
+) -> tuple[bool, str]:
+    """检出上游索引后做条目级合并并校验，返回 (是否成功, 失败说明)。
+
+    - 剔除被隔离学校的条目，避免索引引用未落盘的资源目录（同时让其可被后续同步重试）；
+    - 插回本地独有学校条目，保证整表替换不丢本地学校；
+    - 落盘前用 parse_index_maps 校验：本地学校一个不能少、resource_folder 不能被改。
+    """
+    index_path = warehouse_dir / "index" / "root_index.yaml"
+    merged_text = index_path.read_text(encoding="utf-8")
+    merged_text = remove_school_blocks(merged_text, drop_ids)
+
+    local_blocks = extract_school_blocks(pre_checkout_text, local_only)
+    missing = [sid for sid in local_only if sid not in local_blocks]
+    if missing:
+        return False, f"本地索引无法提取学校条目: {', '.join(missing)}"
+    merged_text = merge_school_blocks_into_index(merged_text, local_blocks)
+
+    merged_ids, merged_folders = parse_index_maps(merged_text)
+    _, pre_folders = parse_index_maps(pre_checkout_text)
+    lost = [sid for sid in local_only if sid not in merged_ids]
+    hijacked = [
+        sid
+        for sid in local_only
+        if sid in merged_ids and pre_folders.get(sid) != merged_folders.get(sid)
+    ]
+    not_dropped = [sid for sid in drop_ids if sid in merged_ids]
+    problems: list[str] = []
+    if lost:
+        problems.append(f"丢失本地学校: {', '.join(lost)}")
+    if hijacked:
+        problems.append(f"resource_folder 被改动: {', '.join(hijacked)}")
+    if not_dropped:
+        problems.append(f"隔离学校仍留在索引: {', '.join(not_dropped)}")
+    if problems:
+        return False, "；".join(problems)
+
+    index_path.write_text(merged_text, encoding="utf-8", newline="\n")
+    return True, ""
+
+
 def apply_v2_bridge_shims_to_folders(warehouse_dir: Path, folders: list[str]) -> int:
     """对本次落盘的适配脚本前置 v2->v1 兼容垫片，返回修改文件数。
 
@@ -567,7 +737,35 @@ def main() -> int:
                 print(f"  - {path}")
         else:
             print("[5/6] Checkout upstream resources")
+            index_in_paths = "index/root_index.yaml" in plan.resource_paths
+            pre_checkout_index_text = (
+                (warehouse_dir / "index" / "root_index.yaml").read_text(encoding="utf-8")
+                if index_in_paths
+                else ""
+            )
             checkout_upstream_paths(warehouse_dir, plan.resource_paths)
+
+            if index_in_paths:
+                merged_ok, merge_detail = merge_index_after_checkout(
+                    warehouse_dir,
+                    pre_checkout_index_text,
+                    plan.local_only,
+                    sorted(quarantined_codes),
+                )
+                if not merged_ok:
+                    print(
+                        f"\nSYNC ABORTED: 索引合并校验失败（{merge_detail}），正在回滚工作区...",
+                        file=sys.stderr,
+                    )
+                    run_git(["checkout", "HEAD", "--", *plan.resource_paths], warehouse_dir)
+                    return 3
+                if plan.local_only:
+                    print(
+                        f"索引合并：保留本地独有学校 {len(plan.local_only)} 所"
+                        f"（{', '.join(plan.local_only)}）"
+                    )
+                if quarantined_codes:
+                    print(f"索引合并：剔除隔离学校条目 {len(quarantined_codes)} 所")
 
             shimmed = apply_v2_bridge_shims_to_folders(warehouse_dir, plan.touched_folders)
             print(f"[5.5/6] Applied v2 bridge compat shim to {shimmed} script(s)")

@@ -155,20 +155,9 @@ def validate_index_compatibility(local_yaml: str, upstream_yaml: str) -> Validat
     local_ids, local_map = parse_index_maps(local_yaml)
     upstream_ids, upstream_map = parse_index_maps(upstream_yaml)
 
-    local_only = sorted(local_ids - upstream_ids)
-    for school_id in local_only:
-        report.blocking.append(
-            ValidationIssue(
-                level="blocking",
-                code="local_only_school",
-                message=(
-                    f"轻屿索引含上游不存在的学校 {school_id}；"
-                    "整表替换会破坏本地环境，需人工合并"
-                ),
-                path=f"index/root_index.yaml#{school_id}",
-            )
-        )
-
+    # 注意：本地独有学校（local_only）不再在这里阻断。
+    # 同步脚本检出上游索引后会执行条目级合并（保留本地独有学校、
+    # 剔除被隔离学校），并在落盘前校验合并结果，见 sync_upstream.merge_index_after_checkout。
     for school_id in sorted(local_ids & upstream_ids):
         local_folder = local_map.get(school_id, "")
         upstream_folder = upstream_map.get(school_id, "")
