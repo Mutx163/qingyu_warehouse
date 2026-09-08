@@ -60,6 +60,8 @@ git clone https://github.com/Mutx163/qingyu_warehouse.git
 index/
   root_index.yaml
   # 学校 / 工具总索引
+  search_index.yaml
+  # 按适配器（脚本）名称搜索的全局索引，由 scripts/build_search_index.py 生成
 
 resources/
   <resource_folder>/

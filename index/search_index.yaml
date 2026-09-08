@@ -1,0 +1,820 @@
+# index/search_index.yaml
+# 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
+# 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
+# App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
+version_id: "IDX_713836364e98a319"
+schools:
+  - id: "GLOBAL_TOOLS"
+    adapters:
+      - adapter_id: "GENERAL_TOOL_01"
+        adapter_name: "组件测试"
+      - adapter_id: "GENERAL_TOOL_02"
+        adapter_name: "适配代码测试"
+      - adapter_id: "WakeUp"
+        adapter_name: "WakeUp课程表分享口令导入(支持新版)"
+      - adapter_id: "StarLink"
+        adapter_name: "星链课表分享码导入"
+  - id: "zhengfang_jiaowu"
+    adapters:
+      - adapter_id: "zhengfang_01"
+        adapter_name: "正方教务html通用获取"
+  - id: "chaoxing_jiaowu"
+    adapters:
+      - adapter_id: "chaoxing"
+        adapter_name: "超星教务系统"
+  - id: "qingguo_jiaowu"
+    adapters:
+      - adapter_id: "qingguo_01"
+        adapter_name: "青果教务html通用获取"
+  - id: "urp_jiaowu"
+    adapters:
+      - adapter_id: "urp_01"
+        adapter_name: "URP教务通用获取"
+  - id: "BBGU"
+    adapters:
+      - adapter_id: "BBGU_01"
+        adapter_name: "北部湾大学教务系统"
+  - id: "BUPT"
+    adapters:
+      - adapter_id: "BUPT_01"
+        adapter_name: "北京邮电大学本科教务"
+  - id: "CQU"
+    adapters:
+      - adapter_id: "CQU"
+        adapter_name: "重庆大学教务"
+  - id: "CQJTU"
+    adapters:
+      - adapter_id: "CQJTU"
+        adapter_name: "重庆交通大学教务"
+  - id: "CQCST"
+    adapters:
+      - adapter_id: "CQCST_01"
+        adapter_name: "重庆城市科技学院强智适配"
+  - id: "CQUT"
+    adapters:
+      - adapter_id: "CQUT"
+        adapter_name: "重庆理工大学教务"
+  - id: "CUST"
+    adapters:
+      - adapter_id: "CUST_01"
+        adapter_name: "长春理工大学教务系统"
+  - id: "CUIT"
+    adapters:
+      - adapter_id: "CUIT_01"
+        adapter_name: "成都信息工程大学本科实践教学平台"
+      - adapter_id: "CUIT_02"
+        adapter_name: "成都信息工程大学教务管理系统"
+  - id: "SHZQ"
+    adapters:
+      - adapter_id: "SHZQ_01"
+        adapter_name: "上海中侨职业技术大学教务系统"
+  - id: "HNZY"
+    adapters:
+      - adapter_id: "HNZY_01"
+        adapter_name: "河南职业技术学院课表"
+  - id: "JYVTC"
+    adapters:
+      - adapter_id: "JYVTC_01"
+        adapter_name: "济源职业技术学院教务系统"
+  - id: "YNUFE"
+    adapters:
+      - adapter_id: "YNUFE_01"
+        adapter_name: "云南财经大学本科教务系统"
+  - id: "HNSF"
+    adapters:
+      - adapter_id: "HNSF_01"
+        adapter_name: "河南师范大学适配教务"
+      - adapter_id: "HNSF_02"
+        adapter_name: "河南师范大学适配教务"
+  - id: "HIST"
+    adapters:
+      - adapter_id: "HIST_01"
+        adapter_name: "河南科技学院适配教务"
+  - id: "HNNU"
+    adapters:
+      - adapter_id: "HNNU_01"
+        adapter_name: "淮南师范学院库表图门户"
+  - id: "TARU"
+    adapters:
+      - adapter_id: "TARU_01"
+        adapter_name: "塔里木大学正方教务"
+  - id: "MASU"
+    adapters:
+      - adapter_id: "MASU_01"
+        adapter_name: "马鞍山学院教务系统"
+  - id: "MMPT"
+    adapters:
+      - adapter_id: "MMPT"
+        adapter_name: "茂名职业技术学院课表"
+  - id: "MYSY"
+    adapters:
+      - adapter_id: "MYSY"
+        adapter_name: "绵阳师范学院教务系统"
+  - id: "MKU"
+    adapters:
+      - adapter_id: "MKU_01"
+        adapter_name: "闽南科技学院教务系统"
+  - id: "SWJTU"
+    adapters:
+      - adapter_id: "SWJTU_01"
+        adapter_name: "西南交通大学VATUU为途教务系统"
+  - id: "SXGCXY"
+    adapters:
+      - adapter_id: "SXGCXY_01"
+        adapter_name: "山西工程职业学院超星教务适配"
+  - id: "XAWL"
+    adapters:
+      - adapter_id: "XAWL_01"
+        adapter_name: "西安文理学院正方教务"
+  - id: "HNVCC"
+    adapters:
+      - adapter_id: "HNVCC_01"
+        adapter_name: "湖南商务职业技术学院强智适配"
+  - id: "IMUT"
+    adapters:
+      - adapter_id: "IMUT_01"
+        adapter_name: "内蒙古工业大学教务处适配"
+  - id: "KSU"
+    adapters:
+      - adapter_id: "KSU_01"
+        adapter_name: "喀什大学正方教务"
+  - id: "CTGU"
+    adapters:
+      - adapter_id: "CTGU"
+        adapter_name: "三峡大学教务"
+  - id: "JXUST"
+    adapters:
+      - adapter_id: "JXUST"
+        adapter_name: "江西理工大学强智教务"
+  - id: "GZST"
+    adapters:
+      - adapter_id: "GZST"
+        adapter_name: "广州松田职业学院教务"
+  - id: "FJCPC"
+    adapters:
+      - adapter_id: "FJCPC"
+        adapter_name: "福建船政交通职业学院教务"
+  - id: "FAFU"
+    adapters:
+      - adapter_id: "FAFU_01"
+        adapter_name: "福建农林大学教务系统"
+  - id: "FOSU"
+    adapters:
+      - adapter_id: "FOSU_01"
+        adapter_name: "佛山大学强智教务系统"
+  - id: "SDDFVC"
+    adapters:
+      - adapter_id: "SDDFVC"
+        adapter_name: "山东药品食品职业学院教务"
+  - id: "SDLIVC"
+    adapters:
+      - adapter_id: "SDLIVC"
+        adapter_name: "山东轻工职业学院教务"
+  - id: "CQCIVC"
+    adapters:
+      - adapter_id: "CQCIVC"
+        adapter_name: "重庆化工职业学院正方教务"
+  - id: "NEU"
+    adapters:
+      - adapter_id: "NEU_1"
+        adapter_name: "东北大学金智教育教务适配"
+  - id: "NJNU"
+    adapters:
+      - adapter_id: "NJNU"
+        adapter_name: "南京师范大学金智教务"
+  - id: "NJUPT"
+    adapters:
+      - adapter_id: "NJUPT_01"
+        adapter_name: "南京邮电大学正方教务"
+  - id: "XMCU"
+    adapters:
+      - adapter_id: "XMCU_01"
+        adapter_name: "厦门城市职业学院青果教务"
+  - id: "XZIT"
+    adapters:
+      - adapter_id: "XZIT_01"
+        adapter_name: "徐州工程学院教务系统"
+  - id: "HBLGXY"
+    adapters:
+      - adapter_id: "HBLGXY_01"
+        adapter_name: "淮北理工学院强智适配"
+  - id: "XJIE"
+    adapters:
+      - adapter_id: "XJIE_01"
+        adapter_name: "新疆工程学院强智适配"
+  - id: "GDPU"
+    adapters:
+      - adapter_id: "GDPU_01"
+        adapter_name: "广东药科大学正方教务"
+  - id: "GDUT"
+    adapters:
+      - adapter_id: "GDUT_01"
+        adapter_name: "广东工业大学教务"
+  - id: "HNUST"
+    adapters:
+      - adapter_id: "HNUST_01"
+        adapter_name: "湖南科技大学适配教务"
+  - id: "HUSE"
+    adapters:
+      - adapter_id: "HUSE"
+        adapter_name: "湖南科技学院"
+  - id: "HUST"
+    adapters:
+      - adapter_id: "HUST_01"
+        adapter_name: "华中科技大学 HUB 系统"
+  - id: "JSNU"
+    adapters:
+      - adapter_id: "JSNU_01"
+        adapter_name: "江苏师范大学适配教务"
+  - id: "JXFU"
+    adapters:
+      - adapter_id: "JXFU_01"
+        adapter_name: "江西飞行学院适配教务"
+  - id: "NEAU"
+    adapters:
+      - adapter_id: "NEAU_01"
+        adapter_name: "东北农业大学适配教务"
+  - id: "SUDA"
+    adapters:
+      - adapter_id: "SUDA_01"
+        adapter_name: "苏州大学教务系统"
+  - id: "CQRK"
+    adapters:
+      - adapter_id: "CQRK_01"
+        adapter_name: "重庆人文科技学院强智适配"
+  - id: "WBU"
+    adapters:
+      - adapter_id: "WBU_01"
+        adapter_name: "武汉商学院-超星教务系统"
+      - adapter_id: "WBU_02"
+        adapter_name: "武汉商学院-校园网访问"
+      - adapter_id: "WBU_03"
+        adapter_name: "武汉商学院-WebVPN访问"
+  - id: "NENU"
+    adapters:
+      - adapter_id: "NENU_01"
+        adapter_name: "东北师范大学适配教务"
+  - id: "HAUT"
+    adapters:
+      - adapter_id: "HAUT_01"
+        adapter_name: "河南工业大学正方教务"
+  - id: "AHSZU"
+    adapters:
+      - adapter_id: "AHSZU_01"
+        adapter_name: "宿州学院青果教务"
+  - id: "XAUT"
+    adapters:
+      - adapter_id: "XAUT_01"
+        adapter_name: "西安理工大学适配教务"
+  - id: "HUAT"
+    adapters:
+      - adapter_id: "HUAT"
+        adapter_name: "湖北汽车工业学院"
+  - id: "CUP"
+    adapters:
+      - adapter_id: "CUP_01"
+        adapter_name: "中国石油大学(北京)本科教务系统"
+      - adapter_id: "CUP_02"
+        adapter_name: "中国石油大学(北京)研究生教务系统"
+  - id: "ZHKU"
+    adapters:
+      - adapter_id: "ZHKU_00"
+        adapter_name: "强智教务 - 学期理论课表"
+  - id: "GXDLXY"
+    adapters:
+      - adapter_id: "GXDLXY_01"
+        adapter_name: "广西电力职业技术学院强智教务"
+  - id: "YANGTZEU"
+    adapters:
+      - adapter_id: "YU_01"
+        adapter_name: "长江大学教务系统适配"
+  - id: "CAPU"
+    adapters:
+      - adapter_id: "CAPU"
+        adapter_name: "成都航空职业技术大学金智新教务"
+  - id: "GSMC"
+    adapters:
+      - adapter_id: "GSMC_01"
+        adapter_name: "甘肃医学院正方教务"
+  - id: "TCU"
+    adapters:
+      - adapter_id: "TCU_01"
+        adapter_name: "天津城建大学URP教务"
+  - id: "TUST"
+    adapters:
+      - adapter_id: "TUST_01"
+        adapter_name: "天津科技大学URP教务"
+  - id: "SCUT"
+    adapters:
+      - adapter_id: "SCUT_01"
+        adapter_name: "华南理工大学webvpn适配教务"
+      - adapter_id: "SCUT_02"
+        adapter_name: "华南理工大学内网适配教务"
+  - id: "HYNU"
+    adapters:
+      - adapter_id: "HYNU_01"
+        adapter_name: "衡阳师范学院强智适配"
+  - id: "JNU"
+    adapters:
+      - adapter_id: "JNU_01"
+        adapter_name: "暨南大学金智教务系统"
+  - id: "HQU"
+    adapters:
+      - adapter_id: "HQU"
+        adapter_name: "华侨大学教务"
+  - id: "UJN"
+    adapters:
+      - adapter_id: "UJN_01"
+        adapter_name: "济南大学教务系统"
+  - id: "JNMC"
+    adapters:
+      - adapter_id: "JNMC_01"
+        adapter_name: "济宁医学院教务"
+  - id: "HBGUHX"
+    adapters:
+      - adapter_id: "HBGUHX"
+        adapter_name: "河北地质大学华信学院强智教务"
+  - id: "YXHMC"
+    adapters:
+      - adapter_id: "YXHMC"
+        adapter_name: "成都银杏酒店管理学院教务"
+  - id: "HNIU"
+    adapters:
+      - adapter_id: "HNIU_01"
+        adapter_name: "湖南信息职业技术学院强智适配"
+  - id: "HUEL"
+    adapters:
+      - adapter_id: "HUEL_01"
+        adapter_name: "河南财经政法大学"
+  - id: "GLMU"
+    adapters:
+      - adapter_id: "GLMU_01"
+        adapter_name: "桂林医科大学教务"
+  - id: "GXMU"
+    adapters:
+      - adapter_id: "GXMU_01"
+        adapter_name: "广西医科大学智慧教务系统"
+  - id: "NJFU"
+    adapters:
+      - adapter_id: "NJFU_01"
+        adapter_name: "南京林业大学"
+  - id: "GUIT"
+    adapters:
+      - adapter_id: "GUIT_01"
+        adapter_name: "桂林信息科技学院"
+  - id: "DLMU"
+    adapters:
+      - adapter_id: "DLMU_01"
+        adapter_name: "大连海事大学教务"
+  - id: "HIIT"
+    adapters:
+      - adapter_id: "HIIT_01"
+        adapter_name: "河南信息科技学院"
+  - id: "NEUQ"
+    adapters:
+      - adapter_id: "NEUQ"
+        adapter_name: "东北大学秦皇岛分校树维教务"
+  - id: "CQUET"
+    adapters:
+      - adapter_id: "CQUET_01"
+        adapter_name: "强智"
+  - id: "YIBINU"
+    adapters:
+      - adapter_id: "YIBINU_01"
+        adapter_name: "宜宾学院教务系统适配"
+  - id: "DLU"
+    adapters:
+      - adapter_id: "DLU_01"
+        adapter_name: "大连大学教务系统"
+  - id: "HBMU"
+    adapters:
+      - adapter_id: "HBMU_01"
+        adapter_name: "湖北医药学院教务"
+  - id: "TONGJI"
+    adapters:
+      - adapter_id: "TONGJI_01"
+        adapter_name: "同济大学 1 系统"
+  - id: "SDNU"
+    adapters:
+      - adapter_id: "SDNU"
+        adapter_name: "山东师范大学教务系统"
+  - id: "CUPK"
+    adapters:
+      - adapter_id: "CUPK_01"
+        adapter_name: "中国石油大学(北京)克拉玛依校区本科教务系统"
+  - id: "HUAYU"
+    adapters:
+      - adapter_id: "HUAYU_01"
+        adapter_name: "山东华宇工学院正方教务"
+  - id: "TSU"
+    adapters:
+      - adapter_id: "TSU_01"
+        adapter_name: "泰山学院青果教务"
+  - id: "GDIPU"
+    adapters:
+      - adapter_id: "GDIPU_01"
+        adapter_name: "广东轻工职业技术大学教务"
+  - id: "SCUEC"
+    adapters:
+      - adapter_id: "SCUEC"
+        adapter_name: "中南民族大学教务系统"
+  - id: "UZZ"
+    adapters:
+      - adapter_id: "UZZ_01"
+        adapter_name: "枣庄学院正方教务"
+  - id: "CMC"
+    adapters:
+      - adapter_id: "CMC_01"
+        adapter_name: "成都医学院教务"
+  - id: "SDIPCT"
+    adapters:
+      - adapter_id: "SDIPCT"
+        adapter_name: "山东石油化工学院教务"
+  - id: "GDUST"
+    adapters:
+      - adapter_id: "GDUST"
+        adapter_name: "广东科技学院正方教务"
+  - id: "UPC"
+    adapters:
+      - adapter_id: "UPC"
+        adapter_name: "中国石油大学(华东)教务适配"
+  - id: "TJAU"
+    adapters:
+      - adapter_id: "TJAU"
+        adapter_name: "天津农学院树维教务"
+  - id: "CCIT"
+    adapters:
+      - adapter_id: "CCIT"
+        adapter_name: "长春工程学院强智教务"
+  - id: "IMNC"
+    adapters:
+      - adapter_id: "IMNC_01"
+        adapter_name: "通过 WebVPN 登录"
+      - adapter_id: "IMNC_02"
+        adapter_name: "已连接校园网？"
+  - id: "NCUT"
+    adapters:
+      - adapter_id: "NCUT_01"
+        adapter_name: "北方工业大学-教务系统"
+  - id: "JXNU"
+    adapters:
+      - adapter_id: "JXNU"
+        adapter_name: "江西师大教务系统"
+  - id: "STCNCHU"
+    adapters:
+      - adapter_id: "STCNCHU"
+        adapter_name: "南昌航空大学科技学院强智教务"
+  - id: "CFEC"
+    adapters:
+      - adapter_id: "CFEC_01"
+        adapter_name: "重庆财经学院正方教务"
+  - id: "AHZYYGZ"
+    adapters:
+      - adapter_id: "AHZYYGZ_01"
+        adapter_name: "安徽中医药高等专科学校"
+  - id: "XATU"
+    adapters:
+      - adapter_id: "XATU_01"
+        adapter_name: "西安工业大学"
+  - id: "NWPU"
+    adapters:
+      - adapter_id: "NWPU_01"
+        adapter_name: "西北工业大学"
+  - id: "NJTECH"
+    adapters:
+      - adapter_id: "NJTECH"
+        adapter_name: "南京工业大学正方教务"
+  - id: "NUIST"
+    adapters:
+      - adapter_id: "NUIST_01"
+        adapter_name: "南京信息工程大学教务课表"
+  - id: "CAUC"
+    adapters:
+      - adapter_id: "CAUC"
+        adapter_name: "中国民航大学正方教务"
+  - id: "DLUTCI"
+    adapters:
+      - adapter_id: "DLUTCI_01"
+        adapter_name: "大连工程学院教务系统"
+  - id: "DZU"
+    adapters:
+      - adapter_id: "DZU_01"
+        adapter_name: "德州学院正方教务"
+  - id: "ECJTU"
+    adapters:
+      - adapter_id: "ECJTU_01"
+        adapter_name: "华东交通大学教务系统"
+  - id: "WENHUA"
+    adapters:
+      - adapter_id: "WENHUA_01"
+        adapter_name: "文华学院正方教务"
+  - id: "XYAFU"
+    adapters:
+      - adapter_id: "XYAFU_01"
+        adapter_name: "信阳农林学院青果教务"
+  - id: "XJZFU"
+    adapters:
+      - adapter_id: "XJZFU_01"
+        adapter_name: "新疆政法学院新教务系统"
+  - id: "ZJUT"
+    adapters:
+      - adapter_id: "ZJUT_01"
+        adapter_name: "浙江工业大学正方教务"
+  - id: "HFNU"
+    adapters:
+      - adapter_id: "HFNU_01"
+        adapter_name: "合肥师范学院树维教务"
+  - id: "ZUA"
+    adapters:
+      - adapter_id: "ZUA_01"
+        adapter_name: "郑州航空工业管理学院教务系统"
+  - id: "JHZYEDU"
+    adapters:
+      - adapter_id: "JHZYEDU_01"
+        adapter_name: "正方教务-江西航空职业技术学院"
+  - id: "QQHRIT"
+    adapters:
+      - adapter_id: "QQHRIT"
+        adapter_name: "齐齐哈尔工程学院正方教务"
+  - id: "IMU"
+    adapters:
+      - adapter_id: "IMU_01"
+        adapter_name: "内蒙古大学URP教务"
+  - id: "QQHRU"
+    adapters:
+      - adapter_id: "QQHRU"
+        adapter_name: "齐齐哈尔大学URP教务"
+  - id: "SICNU"
+    adapters:
+      - adapter_id: "SICNU_01"
+        adapter_name: "四川师范大学教务系统"
+  - id: "GZTRC"
+    adapters:
+      - adapter_id: "GZTRC"
+        adapter_name: "铜仁学院联奕教务"
+  - id: "GZU"
+    adapters:
+      - adapter_id: "GZU"
+        adapter_name: "贵州大学正方教务"
+  - id: "ZCMU"
+    adapters:
+      - adapter_id: "ZCMU"
+        adapter_name: "浙江中医药大学正方教务"
+  - id: "QAU"
+    adapters:
+      - adapter_id: "QAU_01"
+        adapter_name: "青岛农业大学综合教务管理系统（强智科技）"
+  - id: "HUNNU"
+    adapters:
+      - adapter_id: "HUNNU"
+        adapter_name: "湖南师范大学教务"
+  - id: "WHUT"
+    adapters:
+      - adapter_id: "WHUT_01"
+        adapter_name: "武汉理工大学金智教务"
+  - id: "CJLU"
+    adapters:
+      - adapter_id: "CJLU"
+        adapter_name: "中国计量大学正方教务"
+  - id: "CZIMT"
+    adapters:
+      - adapter_id: "CZIMT_01"
+        adapter_name: "常州机电职业技术学院-正方教务"
+  - id: "GSCMXY"
+    adapters:
+      - adapter_id: "GSCMXY_01"
+        adapter_name: "甘肃财贸职业学院-金智教务"
+  - id: "QUT"
+    adapters:
+      - adapter_id: "QUT"
+        adapter_name: "青岛理工大学教务"
+  - id: "CSUFT"
+    adapters:
+      - adapter_id: "CSUFT_QZ_01"
+        adapter_name: "中南林业科技大学（强智教务）"
+  - id: "USTC"
+    adapters:
+      - adapter_id: "USTC"
+        adapter_name: "中国科学技术大学本科教务"
+  - id: "UESTC"
+    adapters:
+      - adapter_id: "UESTC_01"
+        adapter_name: "电子科技大学 EAMS 教务系统"
+  - id: "SDJTU"
+    adapters:
+      - adapter_id: "SDJTU"
+        adapter_name: "山东交通学院教务"
+  - id: "GDOU"
+    adapters:
+      - adapter_id: "GDOU_01"
+        adapter_name: "广东海洋大学教务"
+      - adapter_id: "GDOUYJ_01"
+        adapter_name: "广东海洋大学阳江校区教务"
+  - id: "GDIT"
+    adapters:
+      - adapter_id: "GDIT_01"
+        adapter_name: "广东科学技术职业学院教务"
+  - id: "GUC"
+    adapters:
+      - adapter_id: "GUC"
+        adapter_name: "吉利学院"
+  - id: "NIIT"
+    adapters:
+      - adapter_id: "NIIT"
+        adapter_name: "南京工业职业技术大学教务"
+  - id: "HHTC"
+    adapters:
+      - adapter_id: "HHTC_01"
+        adapter_name: "怀化学院强智教务"
+  - id: "CWXU"
+    adapters:
+      - adapter_id: "CWXU_01"
+        adapter_name: "无锡学院教务系统"
+  - id: "SHUFEZJ"
+    adapters:
+      - adapter_id: "SHUFEZJ"
+        adapter_name: "上海财经大学浙江学院正方教务"
+  - id: "YZU"
+    adapters:
+      - adapter_id: "YZU_01"
+        adapter_name: "扬州大学URP教务"
+  - id: "XUST"
+    adapters:
+      - adapter_id: "XUST_01"
+        adapter_name: "西安科技大学正方教务"
+  - id: "JSTC"
+    adapters:
+      - adapter_id: "JSTC_01"
+        adapter_name: "江苏旅游职业学院教务"
+  - id: "GPNU"
+    adapters:
+      - adapter_id: "GPNU_01"
+        adapter_name: "广师大教务管理系统"
+  - id: "SYIST"
+    adapters:
+      - adapter_id: "SYIST_01"
+        adapter_name: "沈阳科技学院金智教务"
+  - id: "QDHHC"
+    adapters:
+      - adapter_id: "QDHHC"
+        adapter_name: "青岛黄海学院正方教务"
+  - id: "NTU"
+    adapters:
+      - adapter_id: "NTU"
+        adapter_name: "南通大学正方教务"
+  - id: "USTL"
+    adapters:
+      - adapter_id: "USTL"
+        adapter_name: "辽宁科技大学综合教务管理系统"
+  - id: "LUT"
+    adapters:
+      - adapter_id: "LUT"
+        adapter_name: "兰州理工大学教务系统"
+  - id: "LZU"
+    adapters:
+      - adapter_id: "LZU_01"
+        adapter_name: "兰州大学本科生教务"
+  - id: "SYSU"
+    adapters:
+      - adapter_id: "SYSU"
+        adapter_name: "中山大学"
+  - id: "SXDZKJ"
+    adapters:
+      - adapter_id: "SXDZKJ"
+        adapter_name: "山西电子科技学院青果教务"
+  - id: "ZZVCAE"
+    adapters:
+      - adapter_id: "zzvcae_01"
+        adapter_name: "郑州汽车工程职业学院"
+  - id: "LNU"
+    adapters:
+      - adapter_id: "LNU_01"
+        adapter_name: "辽宁大学URP教务"
+  - id: "HNIE"
+    adapters:
+      - adapter_id: "hnie_01"
+        adapter_name: "湖南工程学院"
+  - id: "CQIE"
+    adapters:
+      - adapter_id: "CQIE_01"
+        adapter_name: "重庆工程学院教务"
+  - id: "AUFE"
+    adapters:
+      - adapter_id: "AUFE_01"
+        adapter_name: "安徽财经大学校内入口"
+      - adapter_id: "AUFE_02"
+        adapter_name: "安徽财经大学Webvpn入口"
+  - id: "GZMTU"
+    adapters:
+      - adapter_id: "GZMTU_01"
+        adapter_name: "广州航海学院本科教务"
+  - id: "SWU"
+    adapters:
+      - adapter_id: "SWU_01"
+        adapter_name: "西南大学教务"
+  - id: "ZZU"
+    adapters:
+      - adapter_id: "ZZU_01"
+        adapter_name: "郑州大学"
+  - id: "CCZU"
+    adapters:
+      - adapter_id: "CCZU"
+        adapter_name: "常州大学教务管理信息系统"
+  - id: "FIT"
+    adapters:
+      - adapter_id: "FIT"
+        adapter_name: "福州理工学院正方教务"
+  - id: "GXCME"
+    adapters:
+      - adapter_id: "GXCME"
+        adapter_name: "广西机电职业技术学院正方教务"
+  - id: "HAUST"
+    adapters:
+      - adapter_id: "HAUST"
+        adapter_name: "河南科技大学树维教务"
+  - id: "HRBEU"
+    adapters:
+      - adapter_id: "HRBEU"
+        adapter_name: "哈尔滨工程大学教务系统"
+      - adapter_id: "HRBEU_YJS"
+        adapter_name: "哈尔滨工程大学研究生系统"
+  - id: "HIT"
+    adapters:
+      - adapter_id: "HIT"
+        adapter_name: "哈尔滨工业大学研究生系统"
+  - id: "HUEB"
+    adapters:
+      - adapter_id: "HUEB"
+        adapter_name: "河北经贸大学正方教务"
+  - id: "LCUDCC"
+    adapters:
+      - adapter_id: "LCUDCC"
+        adapter_name: "聊城大学东昌学院正方教务"
+  - id: "LYU"
+    adapters:
+      - adapter_id: "LYU"
+        adapter_name: "临沂大学正方教务"
+  - id: "SHXY"
+    adapters:
+      - adapter_id: "SHXY"
+        adapter_name: "绥化学院乘方教务"
+  - id: "SMXY"
+    adapters:
+      - adapter_id: "SMXY"
+        adapter_name: "三明学院正方教务"
+  - id: "THDM"
+    adapters:
+      - adapter_id: "THDM_01"
+        adapter_name: "南昌科技职业大学教务系统"
+  - id: "XJTU"
+    adapters:
+      - adapter_id: "XJTU_01"
+        adapter_name: "西安交通大学-本科教务"
+  - id: "QHNU"
+    adapters:
+      - adapter_id: "QHNU_01"
+        adapter_name: "青海师范大学研究生课表导入"
+  - id: "WUST"
+    adapters:
+      - adapter_id: "WUST_01"
+        adapter_name: "武汉科技大学教务系统"
+  - id: "NYNU"
+    adapters:
+      - adapter_id: "NYNU_01"
+        adapter_name: "南阳师范学院教务系统"
+  - id: "NCHU"
+    adapters:
+      - adapter_id: "NCHU_01"
+        adapter_name: "南昌航空大学教务系统"
+  - id: "HPU"
+    adapters:
+      - adapter_id: "HPU_01"
+        adapter_name: "河南理工大学教务系统"
+  - id: "CQEPC"
+    adapters:
+      - adapter_id: "CQEPC_01"
+        adapter_name: "重庆航天职业技术学院教务"
+  - id: "CDUTCM"
+    adapters:
+      - adapter_id: "CDUTCM_01"
+        adapter_name: "成都中医药大学教务"
+  - id: "BTBU"
+    adapters:
+      - adapter_id: "BTBU"
+        adapter_name: "北京工商大学本科教务"
+  - id: "SCNU"
+    adapters:
+      - adapter_id: "SCNU_01"
+        adapter_name: "华南师范大学本科教务系统"
+  - id: "LIT"
+    adapters:
+      - adapter_id: "LIT_01"
+        adapter_name: "洛阳理工学院乘方教务"
+  - id: "AEPU"
+    adapters:
+      - adapter_id: "AEPU_01"
+        adapter_name: "安徽电气工程职业技术学院教务系统"
+  - id: "SUSTECH"
+    adapters:
+      - adapter_id: "SUSTECH"
+        adapter_name: "南方科技大学教学管理与服务平台"

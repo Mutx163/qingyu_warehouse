@@ -805,10 +805,25 @@ def main() -> int:
         print("[5/6] Checkout skipped (already in sync)")
         print("[6/6] Post-checkout validation skipped")
 
+    # 教务导入「按适配器名搜索」的全局索引：按同步落盘后的最终索引重建，
+    # 与 root_index/adapters.yaml 同一提交，App 一次请求即可拿到全部脚本名。
+    staged_paths = list(plan.resource_paths)
+    try:
+        from build_search_index import regenerate as regenerate_search_index
+
+        if regenerate_search_index(warehouse_dir):
+            print("已重建 index/search_index.yaml（内容有变化）")
+        else:
+            print("index/search_index.yaml 无变化")
+        if "index/search_index.yaml" not in staged_paths:
+            staged_paths.append("index/search_index.yaml")
+    except Exception as exc:  # 索引重建失败不阻断同步主流程；CI --check 会兜底提醒
+        print(f"警告：搜索索引重建失败，跳过（{exc}）")
+
     committed = commit_if_needed(
         warehouse_dir,
         plan.upstream_only,
-        plan.resource_paths,
+        staged_paths,
         args.dry_run,
         refresh_count=len(plan.refresh_schools),
         quarantine_note=(
