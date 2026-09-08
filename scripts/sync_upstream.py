@@ -479,23 +479,34 @@ def _entry_initials(lines: list[str]) -> dict[int, str]:
 
 
 def merge_school_blocks_into_index(upstream_text: str, blocks: dict[str, list[str]]) -> str:
-    """把本地独有学校条目插回索引文本：同 initial 组插到组内首位，缺组则追加末尾。"""
+    """把本地独有学校条目插回索引文本：同 initial 组插到组内末位，缺组则追加末尾。
+
+    按提取顺序（即本地文件原顺序）依次追加到组尾，保证合并结果幂等，
+    多次运行不会产生条目重排。
+    """
     if not blocks:
         return upstream_text
     lines = upstream_text.splitlines()
     for block in blocks.values():
         initial = _initial_of_block(block)
-        target = next(
-            (idx for idx, ini in _entry_initials(lines).items() if ini == initial),
-            None,
-        )
-        if target is None:
+        entries = _entry_initials(lines)
+        same_starts = [idx for idx, ini in entries.items() if ini == initial]
+        if not same_starts:
             if lines and lines[-1].strip():
                 lines.extend(["", *block])
             else:
                 lines.extend(block)
+            continue
+        target = max(same_starts)  # 同组最后一个条目的起始行
+        later_starts = [idx for idx in entries if idx > target]
+        if later_starts:
+            next_start = min(later_starts)
+            # 插在下一组条目之前，借用其前导空行分隔
+            lines[next_start:next_start] = [*block, ""]
+        elif lines and lines[-1].strip():
+            lines.extend(["", *block])
         else:
-            lines[target:target] = [*block, ""]
+            lines.extend(block)
     text = "\n".join(lines)
     if upstream_text.endswith("\n") and not text.endswith("\n"):
         text += "\n"

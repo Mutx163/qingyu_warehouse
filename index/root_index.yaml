@@ -13,11 +13,6 @@ schools:
     initial: "Z"
     resource_folder: "zhengfang_jiaowu"
 
-  - id: "CDUTCM"
-    name: "成都中医药大学"
-    initial: "C"
-    resource_folder: "CDUTCM"
-
   - id: "chaoxing_jiaowu"
     name: "超星教务系统-通用教务"
     initial: "C"
@@ -113,16 +108,6 @@ schools:
     initial: "T"
     resource_folder: "TARU"
 
-  - id: "MYSY"
-    name: "绵阳师范学院"
-    initial: "M"
-    resource_folder: "MYSY"
-
-  - id: "MKU"
-    name: "闽南科技学院"
-    initial: "M"
-    resource_folder: "MKU"
-
   - id: "MASU"
     name: "马鞍山学院"
     initial: "M"
@@ -132,6 +117,16 @@ schools:
     name: "茂名职业技术学院"
     initial: "M"
     resource_folder: "MMPT"
+
+  - id: "MYSY"
+    name: "绵阳师范学院"
+    initial: "M"
+    resource_folder: "MYSY"
+
+  - id: "MKU"
+    name: "闽南科技学院"
+    initial: "M"
+    resource_folder: "MKU"
 
   - id: "SWJTU"
     name: "西南交通大学"
@@ -987,6 +982,11 @@ schools:
     name: "重庆航天职业技术学院"
     initial: "C"
     resource_folder: "CQEPC"
+
+  - id: "CDUTCM"
+    name: "成都中医药大学"
+    initial: "C"
+    resource_folder: "CDUTCM"
 
   - id: "BTBU"
     name: "北京工商大学"

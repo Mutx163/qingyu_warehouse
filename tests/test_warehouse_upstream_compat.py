@@ -127,10 +127,44 @@ schools:
         ccollege_line = next(i for i, l in enumerate(lines) if '"CCOLLEGE"' in l)
         mysy_line = next(i for i, l in enumerate(lines) if '"MYSY"' in l)
         zz_line = next(i for i, l in enumerate(lines) if '"ZZU"' in l)
-        # 同 initial 组内插到组首，缺组追加末尾
-        self.assertLess(ccollege_line, cqu_line)
+        # 同 initial 组内按提取顺序追加到组尾，缺组追加列表末尾
+        self.assertGreater(ccollege_line, cqu_line)
         self.assertGreater(mysy_line, zz_line)
         self.assertTrue(merged.endswith("\n"))
+
+    def test_merge_is_idempotent_across_runs(self) -> None:
+        """同组多所学校时合并结果必须稳定，否则每天同步都会产生重排提交。"""
+        upstream = (
+            "schools:\n"
+            '  - id: "MASU"\n'
+            '    name: "马鞍山学院"\n'
+            '    initial: "M"\n'
+            '    resource_folder: "MASU"\n'
+        )
+        local = (
+            "schools:\n"
+            '  - id: "MASU"\n'
+            '    name: "马鞍山学院"\n'
+            '    initial: "M"\n'
+            '    resource_folder: "MASU"\n'
+            "\n"
+            '  - id: "MYSY"\n'
+            '    name: "绵阳师范学院"\n'
+            '    initial: "M"\n'
+            '    resource_folder: "MYSY"\n'
+            "\n"
+            '  - id: "MKU"\n'
+            '    name: "闽南科技学院"\n'
+            '    initial: "M"\n'
+            '    resource_folder: "MKU"\n'
+        )
+        blocks = extract_school_blocks(local, ["MYSY", "MKU"])
+        once = merge_school_blocks_into_index(upstream, blocks)
+
+        # 第二次运行：从合并结果中重新提取，再合并一次
+        blocks_again = extract_school_blocks(once, ["MYSY", "MKU"])
+        twice = merge_school_blocks_into_index(upstream, blocks_again)
+        self.assertEqual(once, twice)
 
     def test_remove_school_blocks_keeps_other_entries(self) -> None:
         text = (
