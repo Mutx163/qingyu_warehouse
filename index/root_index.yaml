@@ -13,6 +13,11 @@ schools:
     initial: "Z"
     resource_folder: "zhengfang_jiaowu"
 
+  - id: "CDUTCM"
+    name: "成都中医药大学"
+    initial: "C"
+    resource_folder: "CDUTCM"
+
   - id: "chaoxing_jiaowu"
     name: "超星教务系统-通用教务"
     initial: "C"
@@ -27,6 +32,11 @@ schools:
     name: "URP教务-通用教务"
     initial: "U"
     resource_folder: "urp_jiaowu"
+
+  - id: "BBGU"
+    name: "北部湾大学"
+    initial: "B"
+    resource_folder: "BBGU"
 
   - id: "BUPT"
     name: "北京邮电大学"
@@ -63,11 +73,6 @@ schools:
     initial: "C"
     resource_folder: "CUIT"
 
-  - id: "CDUTCM"
-    name: "成都中医药大学"
-    initial: "C"
-    resource_folder: "CDUTCM"
-
   - id: "SHZQ"
     name: "上海中侨职业技术大学"
     initial: "S"
@@ -93,6 +98,11 @@ schools:
     initial: "H"
     resource_folder: "HNSF"
 
+  - id: "HIST"
+    name: "河南科技学院"
+    initial: "H"
+    resource_folder: "HIST"
+
   - id: "HNNU"
     name: "淮南师范学院"
     initial: "H"
@@ -102,6 +112,21 @@ schools:
     name: "塔里木大学"
     initial: "T"
     resource_folder: "TARU"
+
+  - id: "MKU"
+    name: "闽南科技学院"
+    initial: "M"
+    resource_folder: "MKU"
+
+  - id: "MYSY"
+    name: "绵阳师范学院"
+    initial: "M"
+    resource_folder: "MYSY"
+
+  - id: "MASU"
+    name: "马鞍山学院"
+    initial: "M"
+    resource_folder: "MASU"
 
   - id: "MMPT"
     name: "茂名职业技术学院"
@@ -958,12 +983,32 @@ schools:
     initial: "H"
     resource_folder: "HPU"
 
-  - id: "MYSY"
-    name: "绵阳师范学院"
-    initial: "M"
-    resource_folder: "MYSY"
+  - id: "CQEPC"
+    name: "重庆航天职业技术学院"
+    initial: "C"
+    resource_folder: "CQEPC"
 
-  - id: "MKU"
-    name: "闽南科技学院"
-    initial: "M"
-    resource_folder: "MKU"
+  - id: "BTBU"
+    name: "北京工商大学"
+    initial: "B"
+    resource_folder: "BTBU"
+
+  - id: "SCNU"
+    name: "华南师范大学"
+    initial: "H"
+    resource_folder: "SCNU"
+
+  - id: "LIT"
+    name: "洛阳理工学院"
+    initial: "L"
+    resource_folder: "LIT"
+
+  - id: "AEPU"
+    name: "安徽电气工程职业技术学院"
+    initial: "A"
+    resource_folder: "AEPU"
+    
+  - id: "SUSTECH"
+    name: "南方科技大学"
+    initial: "N"
+    resource_folder: "SUSTECH"
