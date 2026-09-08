@@ -630,6 +630,15 @@ def commit_if_needed(
         + "来源: shiguang_warehouse/main"
     )
     run_git(["add", "--", *staged_paths], warehouse_dir)
+    # 检出上游索引会把上游版本写入暂存区；若合并结果与 HEAD 完全一致，
+    # 此时暂存区与 HEAD 相同，git commit 会以 "nothing to commit" 失败，这里直接跳过。
+    staged_vs_head = run_git(
+        ["diff", "--cached", "--quiet", "--", *staged_paths],
+        warehouse_dir,
+        check=False,
+    )
+    if staged_vs_head.returncode == 0:
+        return None
     run_git(["commit", "-m", message], warehouse_dir)
     return run_git(["rev-parse", "--short", "HEAD"], warehouse_dir).stdout.strip()
 
