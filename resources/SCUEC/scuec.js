@@ -134,7 +134,8 @@ function parseSingleCourse(courseHTML) {
         }
 
         const firstLine = lines[0];
-        const weekMatch = firstLine.match(/\d+(?:\s*[-~]\s*\d+)?周(?:\((?:单|双)\))?/);
+        // 连续的多段周次（"1-7周,14-16周,9-9周,12-12周"）整体取出后再交给 parseWeeks
+        const weekMatch = firstLine.match(/(?:\d+(?:\s*[-~]\s*\d+)?周(?:\((?:单|双)\))?\s*[,，、;；]?\s*)+/);
         const sectionMatch = firstLine.match(/[（(]第(\d+)(?:\s*[-~]\s*(\d+))?节[）)]/);
         const weekToken = weekMatch ? weekMatch[0] : '';
         const weeks = parseWeeks(weekToken);
@@ -163,7 +164,7 @@ function parseSingleCourse(courseHTML) {
 
         const customTimeMatch = firstLine.match(/[（(](\d{1,2}:\d{2})\s*[-~]\s*(\d{1,2}:\d{2})[）)]/);
         const rest = lines.slice(1);
-        const positionLine = rest.find((line) => /[楼馆场室厅]/.test(line));
+        const positionLine = rest.find((line) => /[楼馆场室厅]|中心|基地|操场|球场/.test(line));
         const teacherLine = rest.find((line) => line !== positionLine);
 
         const result = {
@@ -267,7 +268,13 @@ function extractCoursesFromTable() {
                 console.log('[INFO] 检测到未安排课程表');
                 const unscheduledCourses = extractUnscheduledCourses(captionCell);
                 if (unscheduledCourses) {
-                    courses.push(...unscheduledCourses);
+                    // 未安排时间的课程没有 day/section，App 端会把 day=0/section=0
+                    // 夹到「周一第 1 节」，造成与真实课程重叠的错误占位；
+                    // 周次为空的还会被 App 直接丢弃。这里只记录不导入。
+                    console.warn(
+                        `[WARN] 跳过 ${unscheduledCourses.length} 门未安排时间课程（App 暂不支持无时间课程）: ` +
+                        unscheduledCourses.map((c) => c.name).join(', ')
+                    );
                 }
                 break;
             }
