@@ -199,6 +199,24 @@ function toHHMM(totalMinutes) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+// 教务系统口径兜底时间表：13 小节（与 #kbtable 的 th[rowspan] 大节拆分结果一致）
+// 仅当页面存在 #kbtable 但读不到时间块时使用，保证「教务系统时间表」选项始终是教务口径
+const JWC_FALLBACK_TIME_SLOTS = [
+    { number: 1, startTime: '08:00', endTime: '08:45' },
+    { number: 2, startTime: '08:50', endTime: '09:35' },
+    { number: 3, startTime: '09:55', endTime: '10:40' },
+    { number: 4, startTime: '10:45', endTime: '11:30' },
+    { number: 5, startTime: '11:35', endTime: '12:20' },
+    { number: 6, startTime: '14:00', endTime: '14:45' },
+    { number: 7, startTime: '14:50', endTime: '15:35' },
+    { number: 8, startTime: '15:55', endTime: '16:40' },
+    { number: 9, startTime: '16:45', endTime: '17:30' },
+    { number: 10, startTime: '17:35', endTime: '18:20' },
+    { number: 11, startTime: '19:00', endTime: '19:45' },
+    { number: 12, startTime: '19:50', endTime: '20:35' },
+    { number: 13, startTime: '20:40', endTime: '21:25' }
+];
+
 // 学校作息表：11 节，每节 45 分钟
 // （1-2 / 3-4 / 7-8 / 10-11 节各自相邻，节间 5 分钟）
 const PRESET_TIME_SLOTS = [
@@ -216,7 +234,7 @@ const PRESET_TIME_SLOTS = [
 ];
 
 function generateTimeSlots(doc) {
-  const fallback = PRESET_TIME_SLOTS;
+  const fallback = JWC_FALLBACK_TIME_SLOTS;
 
   const table = doc.querySelector('#kbtable');
   if (!table) return fallback;
