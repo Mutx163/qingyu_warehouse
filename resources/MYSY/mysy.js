@@ -217,9 +217,13 @@ const JWC_FALLBACK_TIME_SLOTS = [
     { number: 13, startTime: '20:40', endTime: '21:25' }
 ];
 
-// 学校作息表：11 节，每节 45 分钟
-// （1-2 / 3-4 / 7-8 / 10-11 节各自相邻，节间 5 分钟）
-const PRESET_TIME_SLOTS = [
+// 实际上课时间（学校实际作息）：11 节，每节 45 分钟
+// 绵阳师范学院实际作息与教务系统课表时间不一致：
+//   · 教务课表按 13 小节编号，实际上午只上 4 节（教务第 5 节 11:35-12:20 无课）
+//   · 上午第 1 节实际 08:15 开始（教务为 08:00）
+//   · 教务第 13 节（20:40-21:25）不在实际作息内
+// 选用本表时脚本会把课程节次由教务口径换算为实际作息口径（见 JWC_TO_ACTUAL_SECTION）
+const ACTUAL_TIME_SLOTS = [
     { number: 1, startTime: '08:15', endTime: '09:00' },
     { number: 2, startTime: '09:05', endTime: '09:50' },
     { number: 3, startTime: '10:20', endTime: '11:05' },
@@ -232,6 +236,47 @@ const PRESET_TIME_SLOTS = [
     { number: 10, startTime: '19:00', endTime: '19:45' },
     { number: 11, startTime: '19:50', endTime: '20:35' }
 ];
+
+// 教务课表节次 → 实际上课时间节次
+// （教务第 5 节 11:35-12:20 实际无课；教务第 13 节 20:40-21:25 不在实际作息内）
+const JWC_TO_ACTUAL_SECTION = {
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  6: 5,
+  7: 6,
+  8: 7,
+  9: 8,
+  10: 9,
+  11: 10,
+  12: 11
+};
+
+// 选用「实际上课时间」时，把课程节次从教务口径换算为实际作息口径；
+// 位于教务第 5/13 节（实际作息无对应节次）的课程保留原节次并提示。
+function remapCoursesToActualSections(courses) {
+  let unmapped = 0;
+
+  const remapped = courses.map((course) => {
+    const start = JWC_TO_ACTUAL_SECTION[course.startSection];
+    const end = JWC_TO_ACTUAL_SECTION[course.endSection];
+
+    if (start === undefined || end === undefined) {
+      unmapped += 1;
+      return course;
+    }
+
+    return Object.assign({}, course, { startSection: start, endSection: end });
+  });
+
+  if (unmapped > 0) {
+    console.warn(`[MYSY] ${unmapped} 门课程位于教务第 5/13 节，实际作息无对应节次，已保留教务节次`);
+    showToast(`${unmapped} 门课程位于实际作息之外的节次，已保留教务节次`);
+  }
+
+  return remapped;
+}
 
 function generateTimeSlots(doc) {
   const fallback = JWC_FALLBACK_TIME_SLOTS;
@@ -288,17 +333,17 @@ function normalizeSelectionIndex(raw, optionCount) {
   return index;
 }
 
-// 让用户在「教务系统时间表」和「预设作息时间表」之间二选一
+// 让用户在「教务系统课表时间」和「实际上课时间」之间二选一
 async function chooseTimeSlots(pageSlots) {
   const options = [
-    `教务系统时间表（${pageSlots.length} 节）`,
-    `预设作息时间表（${PRESET_TIME_SLOTS.length} 节）`
+    `教务系统课表时间（${pageSlots.length} 节）`,
+    `实际上课时间（${ACTUAL_TIME_SLOTS.length} 节，上午 4 节）`
   ];
 
   try {
     const bridge = window.shiguangBridgePromise || window.AndroidBridgePromise;
     if (!bridge || typeof bridge.showSingleSelection !== 'function') {
-      return pageSlots;
+      return { useActual: false, slots: pageSlots };
     }
 
     const raw = await bridge.showSingleSelection(
@@ -309,14 +354,14 @@ async function chooseTimeSlots(pageSlots) {
     const index = normalizeSelectionIndex(raw, options.length);
 
     if (index === 1) {
-      showToast('已使用预设作息时间表');
-      return PRESET_TIME_SLOTS;
+      showToast('已使用实际上课时间');
+      return { useActual: true, slots: ACTUAL_TIME_SLOTS };
     }
-    if (index < 0) showToast('未选择，已使用教务系统时间表');
-    return pageSlots;
+    if (index < 0) showToast('未选择，已使用教务系统课表时间');
+    return { useActual: false, slots: pageSlots };
   } catch (error) {
-    console.warn('[MYSY] 时间表选择弹窗不可用，改用教务系统时间表:', error);
-    return pageSlots;
+    console.warn('[MYSY] 时间表选择弹窗不可用，改用教务系统课表时间:', error);
+    return { useActual: false, slots: pageSlots };
   }
 }
 
@@ -394,10 +439,14 @@ async function runImportFlow() {
     console.warn('[MYSY] confirmation dialog unavailable:', error);
   }
 
-  if (!(await saveCourses(courses))) return;
+  const timeChoice = await chooseTimeSlots(generateTimeSlots(doc));
+  const coursesToSave = timeChoice.useActual
+    ? remapCoursesToActualSections(courses)
+    : courses;
 
-  const timeSlots = await chooseTimeSlots(generateTimeSlots(doc));
-  if (!(await saveTimeSlots(timeSlots))) return;
+  if (!(await saveCourses(coursesToSave))) return;
+
+  if (!(await saveTimeSlots(timeChoice.slots))) return;
 
   await saveCourseConfig();
 
