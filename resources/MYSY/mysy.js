@@ -199,10 +199,27 @@ function toHHMM(totalMinutes) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-function generateTimeSlots(doc) {
-  // 绵阳师范学院实际作息：11 节，每节 45 分钟
-  // （1-2 / 3-4 / 7-8 / 10-11 节各自相邻，节间 5 分钟）
-  const fallback = [
+// 教务系统口径兜底时间表：13 小节（与 #kbtable 的 th[rowspan] 大节拆分结果一致）
+// 仅当页面存在 #kbtable 但读不到时间块时使用，保证「教务系统时间表」选项始终是教务口径
+const JWC_FALLBACK_TIME_SLOTS = [
+    { number: 1, startTime: '08:00', endTime: '08:45' },
+    { number: 2, startTime: '08:50', endTime: '09:35' },
+    { number: 3, startTime: '09:55', endTime: '10:40' },
+    { number: 4, startTime: '10:45', endTime: '11:30' },
+    { number: 5, startTime: '11:35', endTime: '12:20' },
+    { number: 6, startTime: '14:00', endTime: '14:45' },
+    { number: 7, startTime: '14:50', endTime: '15:35' },
+    { number: 8, startTime: '15:55', endTime: '16:40' },
+    { number: 9, startTime: '16:45', endTime: '17:30' },
+    { number: 10, startTime: '17:35', endTime: '18:20' },
+    { number: 11, startTime: '19:00', endTime: '19:45' },
+    { number: 12, startTime: '19:50', endTime: '20:35' },
+    { number: 13, startTime: '20:40', endTime: '21:25' }
+];
+
+// 学校作息表：11 节，每节 45 分钟
+// （1-2 / 3-4 / 7-8 / 10-11 节各自相邻，节间 5 分钟）
+const PRESET_TIME_SLOTS = [
     { number: 1, startTime: '08:15', endTime: '09:00' },
     { number: 2, startTime: '09:05', endTime: '09:50' },
     { number: 3, startTime: '10:20', endTime: '11:05' },
@@ -214,7 +231,10 @@ function generateTimeSlots(doc) {
     { number: 9, startTime: '17:45', endTime: '18:30' },
     { number: 10, startTime: '19:00', endTime: '19:45' },
     { number: 11, startTime: '19:50', endTime: '20:35' }
-  ];
+];
+
+function generateTimeSlots(doc) {
+  const fallback = JWC_FALLBACK_TIME_SLOTS;
 
   const table = doc.querySelector('#kbtable');
   if (!table) return fallback;
@@ -258,6 +278,46 @@ function generateTimeSlots(doc) {
   }
 
   return slots.length > 0 ? slots : fallback;
+}
+
+// 桥接层回传的选项序号可能是 number / 字符串 / null，统一归一化（-1 = 取消）
+function normalizeSelectionIndex(raw, optionCount) {
+  if (raw === null || raw === undefined || raw === '') return -1;
+  const index = Number(raw);
+  if (!Number.isFinite(index) || index < 0 || index >= optionCount) return -1;
+  return index;
+}
+
+// 让用户在「教务系统时间表」和「预设作息时间表」之间二选一
+async function chooseTimeSlots(pageSlots) {
+  const options = [
+    `教务系统时间表（${pageSlots.length} 节）`,
+    `预设作息时间表（${PRESET_TIME_SLOTS.length} 节）`
+  ];
+
+  try {
+    const bridge = window.shiguangBridgePromise || window.AndroidBridgePromise;
+    if (!bridge || typeof bridge.showSingleSelection !== 'function') {
+      return pageSlots;
+    }
+
+    const raw = await bridge.showSingleSelection(
+      '选择课表使用的时间表',
+      JSON.stringify(options),
+      0
+    );
+    const index = normalizeSelectionIndex(raw, options.length);
+
+    if (index === 1) {
+      showToast('已使用预设作息时间表');
+      return PRESET_TIME_SLOTS;
+    }
+    if (index < 0) showToast('未选择，已使用教务系统时间表');
+    return pageSlots;
+  } catch (error) {
+    console.warn('[MYSY] 时间表选择弹窗不可用，改用教务系统时间表:', error);
+    return pageSlots;
+  }
 }
 
 async function saveCourses(courses) {
@@ -336,7 +396,7 @@ async function runImportFlow() {
 
   if (!(await saveCourses(courses))) return;
 
-  const timeSlots = generateTimeSlots(doc);
+  const timeSlots = await chooseTimeSlots(generateTimeSlots(doc));
   if (!(await saveTimeSlots(timeSlots))) return;
 
   await saveCourseConfig();
