@@ -38,9 +38,9 @@ git clone https://github.com/Mutx163/qingyu_warehouse.git
 
 ## 一键 AI 自助适配
 
-想用自己的 coding agent（如 ZCode）一步完成本校课表导入适配：先登录好学校教务系统，再把 [.agents/skills/jiaowu-adapter/ONE_LINER.md](./.agents/skills/jiaowu-adapter/ONE_LINER.md) 里的一键指令（填入学校名与教务 URL 后）整段粘给 agent。agent 会自行拉取并执行：
+想用自己的 coding agent（如 ZCode）一步完成本校课表导入适配：把 [.agents/skills/jiaowu-adapter/ONE_LINER.md](./.agents/skills/jiaowu-adapter/ONE_LINER.md) 里的一键指令（填入学校名与教务 URL 后）整段粘给 agent 即可。agent 会自行拉取 skill 并执行，**第一步先把教务网站打开、然后停下来等你登录**——你在它打开的那个页面里自己登录，回一句「已登录」，它接着跑完全流程：
 
-- 流程 skill：[.agents/skills/jiaowu-adapter/SKILL.md](./.agents/skills/jiaowu-adapter/SKILL.md)（raw：`https://raw.githubusercontent.com/Mutx163/qingyu_warehouse/main/.agents/skills/jiaowu-adapter/SKILL.md`；国内网络拉取失败时改用上面 GitCode 镜像克隆后读本地文件）
+- 流程 skill：[.agents/skills/jiaowu-adapter/SKILL.md](./.agents/skills/jiaowu-adapter/SKILL.md)（国内 raw：`https://raw.gitcode.com/mutx/qingyu_warehouse/raw/main/.agents/skills/jiaowu-adapter/SKILL.md`；国际 raw：`https://raw.githubusercontent.com/Mutx163/qingyu_warehouse/main/.agents/skills/jiaowu-adapter/SKILL.md`；两者都拉不到时，用上面 GitCode 镜像克隆后读本地文件）
 - 一键指令：[.agents/skills/jiaowu-adapter/ONE_LINER.md](./.agents/skills/jiaowu-adapter/ONE_LINER.md)
 
 全程不索要账号密码：用户自己在浏览器完成登录，agent 只在已登录页签中复用会话，测试代码只把结果打印到控制台回传。

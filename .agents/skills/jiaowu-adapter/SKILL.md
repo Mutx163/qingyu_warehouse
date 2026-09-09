@@ -36,14 +36,28 @@ description: 轻屿/拾光课表 App 的教务课表导入适配工作流（qing
 |---|---|
 | 学校名 + 教务入口 URL | 如「闽南科技学院，https://jwgl.mku.edu.cn/」 |
 | 目标校代码 `SCHOOL_ID` | 通常取学校英文缩写（全大写），须与 `resources/` 目录名、`root_index.yaml` 的 id 一致；若仓库已有该校目录则复用 |
-| 登录状态 | 用户须在浏览器中**已完成登录**，会话有效 |
+| 登录状态 | 用户须在浏览器中**已完成登录**，会话有效。分工见 §1.1：**agent 只负责把教务入口页面打开，登录动作一律由用户本人完成** |
 | 仓库访问方式 | 克隆 `https://github.com/Mutx163/qingyu_warehouse`（App 读这个 fork）。国内网络直连失败时：优先用 GitCode 镜像 `https://gitcode.com/mutx/qingyu_warehouse`（main 更新后自动同步；只用于拉取，Issue/PR 仍走 GitHub），或用户认可的 GitHub 加速代理；克隆后改读本地文件继续 |
+
+### 1.1 登录分工：**agent 开页面，用户接管登录**
+
+全程铁律：**agent 不执行登录、不代填表单、不索要账号密码/验证码/ Cookie**。正确顺序：
+
+1. **agent 把教务入口打开**（拿到 URL 后第一件事）
+   - **模式 A**（agent 有浏览器控制能力）：用浏览器工具打开用户给的教务入口 URL，**然后停在这里**，回复用户「页面已打开，请你在里面完成登录；登录好后告诉我，我再继续」；
+   - **模式 B**（agent 无浏览器能力）：提示用户在本机浏览器打开该 URL 并登录，登录完成后再继续。
+2. **用户接管登录**：用户本人在该页面完成账号密码 / 验证码 / 统一身份认证。agent 只等待，不介入。
+3. **确认会话已建立**：登录完成后先跑一次 §4 探测做连通性确认；若 HTTP 200 但 body 是登录跳转脚本，说明会话没建立成功 → 提示用户重新登录，不要继续解析（见 §4 认知错误 2）。
+
+> 模式 A 下，后续所有探测与注入测试都在**这个已登录页签**内执行，会话天然复用，用户不需要提供任何凭证。
+> 若 agent 的浏览器环境无法访问校园网/教务站点（很多教务只对内网或特定网络开放），退回模式 B：由用户在自己的浏览器里登录并粘贴运行代码片段。
 
 ---
 
 ## 2. 快速路径总览
 
 ```text
+Step 0  打开教务入口 URL → 用户接管登录 → 确认会话有效（§1.1，agent 不碰凭证）
 Step 1  识别平台（URL/页面特征 + 仓库内同平台学校 grep）
 Step 2  读同平台参考脚本（§3 平台表），只当骨架
 Step 3  探测目标校真实接口（§4）：课表接口 URL/参数/返回形态
@@ -73,8 +87,8 @@ grep -rlE "xskbcx|kbgrid_table_0|__VIEWSTATE|xs_main" resources/ --include='*.js
 |---|---|---|
 | **强智·新版 layui** | 课表格 `td[name="kbDataTd"]`；课程条目 `li > .qz-hasCourse-title`（课名）/`.qz-hasCourse-abbrinfo`（老师/时间/地点串）；课表接口带 `?viweType=0`（注意：参数名就是 **viweType**，原样拼写，勿"纠正"成 viewType） | **`resources/MKU/mku.js`（同构最佳参考）**；周次接口 `/jsxsd/xskb/jxzlzc_xnxq_ajax` 返回 `[{"qszc":1,"jszc":20}]` |
 | **强智·老版** | 路径 `/jsxsd/`、页面 `.htmlx`；课表 `POST /jsxsd/xskb/xskb_list.do` 返回 `<div class="kbcontent">`，字段藏在 `<font title="教师/周次/教室">` 的 title 里 | `resources/HYNU/hynu_01.js`（最简）、`resources/BUPT/bupt_01.js`、`resources/BTBU/btbu.js`（含 WebVPN 前缀自动推导）、HHTC/HNUST/HUSE/JSNU/QAU/XAUT 等（grep jsxsd 可见 20+ 所） |
-| **正方** | `.aspx`、`xs_main.aspx`/`xskbcx`、`#kbgrid_table_0`、`__VIEWSTATE`，页面依赖 jQuery（模板里 `window.jQuery`） | `resources/zhengfang_jiaowu/zhengfang_01.js`（通用模板，约 50 所学校在用） |
-| **青果** | CAS `login.action` / authserver 登录；通用模板用「倒数 7 列」逻辑解析课表表格 | `resources/qingguo_jiaowu/qingguo_01.js`（通用模板，约 16 所） |
+| **正方** | `.aspx`、`xs_main.aspx`/`xskbcx`、`#kbgrid_table_0`、`__VIEWSTATE`，页面依赖 jQuery（模板里 `window.jQuery`） | `resources/zhengfang_jiaowu/zhengfang_01.js`（通用模板，约 44 所学校在用） |
+| **青果** | CAS `login.action` / authserver 登录；通用模板用「倒数 7 列」逻辑解析课表表格 | `resources/qingguo_jiaowu/qingguo_01.js`（通用模板，约 9 所） |
 | **URP** | 周次文案形如 `"1-8,10-17周"`、带单/双周标记；DOM 解析 | `resources/urp_jiaowu/urp_01.js`（通用模板） |
 | **超星** | 部分字段内嵌 HTML 标签（取 `<a>` 文本）；教师名带括号要清洗 | `resources/chaoxing_jiaowu/chaoxing.js`（通用模板） |
 | **不确定** | 拿目标校页面特征 grep 上表关键词 | 命中谁就抄谁；都命中不了就按 §5 骨架从零写，并用 §4 实测定接口 |
@@ -84,12 +98,14 @@ grep -rlE "xskbcx|kbgrid_table_0|__VIEWSTATE|xs_main" resources/ --include='*.js
 
 ## 4. 实测目标校真实接口
 
+**前提：已完成 §1.1 的登录，当前页面/页签处于已登录状态。** 还没登录就先回去走 Step 0，别急着探测。
+
 目标：拿到「完整学期课表」的数据源 + 学期/周次/时间参数。**两个高频认知错误先记住：**
 
 1. **首页仪表盘 ≠ 全量数据**：教务首页常只渲染「当前周」视图；完整学期课表必须走专门的课表接口（如强智 `xskb_list.do` 服务端直出整学期 HTML）。
 2. **会话失效 ≠ HTTP 报错**：请求返回 **HTTP 200** 但 body 是登录跳转脚本（形如 `window.location.href = 'https://.../cas/login'` 的整页 JS 重定向）→ 判为未登录，提示用户刷新重登，不要继续解析。
 
-### 探测片段（用户粘贴到已登录页签 F12 控制台运行；结果复制回给 agent）
+### 探测片段（模式 A：agent 在已登录页签直接注入执行；模式 B：用户粘贴到已登录页签 F12 控制台运行，结果复制回给 agent）
 
 ```js
 // 把 TIMETABLE_URL 换成 §3 推断的课表接口候选（绝对或同源相对路径均可）
@@ -121,11 +137,58 @@ grep -rlE "xskbcx|kbgrid_table_0|__VIEWSTATE|xs_main" resources/ --include='*.js
 
 把输出回传后，agent 判断：接口形态（HTML 课表页 / JSON / 登录跳转）→ 选定解析策略 → 需要参数（学期 id、`viweType`、`__VIEWSTATE` 等）时再补一轮定向探测（如「取学期下拉的 options」「POST 表单字段清单」）。
 
+### 先确认 GET 还是 POST（别用 GET 硬撞 POST 接口）
+
+上面那段探测是 **GET**。**强智老版、部分正方/URP 的课表接口是 POST**（如强智老版 `POST /jsxsd/xskb/xskb_list.do`），用 GET 去撞只会拿到 405 或空页，容易被误判成「接口不存在」。判断依据按优先级：
+
+1. **同平台参考脚本里已有的请求方式**——最快，直接抄；
+2. 浏览器 DevTools → Network → 找到课表请求 → 看 `Method` 列与 `Payload / 表单数据`；
+3. 教务页面源码里课表表单的 `method` 属性。
+
+确认是 POST 后改用这段（把 `FORM_BODY` 换成 DevTools Payload 里看到的真实字段；强智常见 `xnxq01id`（学期）、`viweType`、`kbjcmsid`）：
+
+```js
+(async () => {
+  const out = { url: location.href, fetched: "TIMETABLE_URL", method: "POST" };
+  const resp = await fetch("TIMETABLE_URL", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "FORM_BODY"          // 例："xnxq01id=2025-2026-1&viweType=0"
+  });
+  out.status = resp.status;
+  const text = await resp.text();
+  out.bodyHead = text.slice(0, 4000);
+  out.loginRedirect = /location\.href\s*=\s*['"][^'"]*(login|cas\/)/i.test(text.slice(0, 2000));
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  out.hint = {
+    kbcontent: doc.querySelectorAll("div.kbcontent, div.kbcontent1").length,
+    kbgrid: !!doc.querySelector("#kbgrid_table_0"),
+    kbDataTd: !!doc.querySelector('td[name="kbDataTd"]')
+  };
+  return JSON.stringify(out);
+})();
+```
+
+表单字段拿不准时，先跑一轮「取表单字段清单」的定向探测（在课表页执行）：
+
+```js
+[...new Set([...document.querySelectorAll("form input[name], form select[name]")].map(e => e.name))].join("\n")
+```
+
 ---
 
 ## 5. 编写适配脚本（骨架模板）
 
-输出 `resources/<SCHOOL_ID>/<s>.js`（文件名小写，参考 MKU 的 `mku.js`）。脚本头部**必须**原样带 shim，其后是主体。骨架（按 MKU 结构泛化；注释中的占位实现请对照参考脚本抄写补全）：
+输出 `resources/<SCHOOL_ID>/<s>.js`（文件名小写，参考 MKU 的 `mku.js`）。脚本头部**必须**原样带 shim，其后是主体。
+
+> ⚠️ **下面是伪代码骨架，不是可直接运行的代码。** 凡带 `<...>` 尖括号占位、`/* ... */` 注释占位的行（典型：`url += "&<学期参数>="`、`const doc = /* ... */;`、`semesterTotalWeeks: /* ... */,`）**必须逐处替换成真实内容**，否则 `node --check` 必然失败。
+>
+> **必须替换的占位清单**：`SCHOOL_BASE_URL`、`SCHOOL_TIMETABLE_URL`、`<课表接口路径>`、`<参数>`、`<学期参数>`、`<目标课表特征选择器>`、`<学校名>`、`<domain>`、`<平台名>`、`<REF_SCHOOL>`、`<SCHOOL_ID>`；5 个 `school*` 函数体（对照参考脚本补全）；`const doc = ...`；`config` 里的 `semesterTotalWeeks`。
+>
+> **替换完先跑 `node --check` 通过，再进入 §6 注入测试。**
+
+骨架（按 MKU 结构泛化；注释中的占位实现请对照参考脚本抄写补全）：
 
 ```js
 /* qingyu-compat-shim v2:auto-generated, do not edit */
@@ -270,7 +333,9 @@ async function schoolRunImportFlow() {
 - **时间模板**：`[{ number, startTime, endTime }]`（HH:mm）。
 - **学期配置**：`{ semesterStartDate("YYYY-MM-DD",可省), semesterTotalWeeks, firstDayOfWeek, defaultClassDuration, defaultBreakDuration }`。
 
-**推荐执行顺序**：识别登录态 → 抓原始数据 → 转 courses →（需要时）timeSlots/config → save 三连 → `notifyTaskCompletion()`。---
+**推荐执行顺序**：识别登录态 → 抓原始数据 → 转 courses →（需要时）timeSlots/config → save 三连 → `notifyTaskCompletion()`。
+
+---
 
 ## 6. 注入测试（替代 F12 手工点按）
 
