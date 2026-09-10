@@ -13,6 +13,16 @@
 //
 // 关联键：(kcmc + xq + jcdm2) 三元组
 // 36 条课程任务只对应 13 个不同 kcrwdm，并发 13 次 fetch 即覆盖全部排课详情
+//
+// jcdm2 节次代码：
+//   "01,02,03" → 1-3 节连堂（普通课）
+//   "00" → 早读（每日 08:00-08:20），脚本映射到 startSection=1/endSection=1
+//
+// TIME_SLOTS 映射（关键）：
+//   App 端 _decodeImportedSections 忽略 number 字段，按数组顺序当 sections。
+//   数组第 N 项（0-indexed）= App 的 section N+1。
+//   早读放数组第 0 位（section 1），普通 1-12 节依次排 section 2-13。
+//   已知代价：App 显示的"第 N 节"实际对应教务原第 N-1 节课。
 
 // ===== 解析周次字符串为升序 number[] =====
 function parseWeeks(zcs) {
@@ -43,30 +53,32 @@ function splitClassInfo(jxbmc) {
     return { base: text, range: '' };
 }
 
-// ===== 早读默认时段 =====
-const MORNING_READING_START = '08:00';
-const MORNING_READING_END = '08:20';
-
 // ===== 时间模板（节次时间表，CDUTCM 教务不直接暴露）=====
+// App 端行为：
+//   - _decodeImportedSections 忽略 number 字段，按数组顺序当 sections
+//   - _parseWarehouseCourses 忽略 isCustomTime/customStartTime/customEndTime
+//   - 所以 TIME_SLOTS 数组第 N 项（0-indexed）= App 的 section N+1
+//   - 课程时间永远按 sections[startSection-1] 取
 // 推导规则：每节 40 分钟，节间 10 分钟
-//   00 早读：08:00-08:20
-//   01-05 上午：08:30 起
-//   06-09 下午：14:00 起
-//   10-12 晚上：18:30 起
+//   section 1:  早读 08:00-08:20
+//   section 2-6: 上午 1-5 节 (08:30 - 12:30)
+//   section 7-10: 下午 6-9 节 (14:00 - 17:10)
+//   section 11-13: 晚上 10-12 节 (18:30 - 20:50)
+// 已知代价：节次号偏 1 (App 显示"第 N 节"对应教务原第 N-1 节)
 const TIME_SLOTS = [
-    { number: 0,  startTime: '08:00', endTime: '08:20' },
-    { number: 1,  startTime: '08:30', endTime: '09:10' },
-    { number: 2,  startTime: '09:20', endTime: '10:00' },
-    { number: 3,  startTime: '10:10', endTime: '10:50' },
-    { number: 4,  startTime: '11:00', endTime: '11:40' },
-    { number: 5,  startTime: '11:50', endTime: '12:30' },
-    { number: 6,  startTime: '14:00', endTime: '14:40' },
-    { number: 7,  startTime: '14:50', endTime: '15:30' },
-    { number: 8,  startTime: '15:40', endTime: '16:20' },
-    { number: 9,  startTime: '16:30', endTime: '17:10' },
-    { number: 10, startTime: '18:30', endTime: '19:10' },
-    { number: 11, startTime: '19:20', endTime: '20:00' },
-    { number: 12, startTime: '20:10', endTime: '20:50' }
+    { number: 1,  startTime: '08:00', endTime: '08:20' },  // section 1: 早读
+    { number: 2,  startTime: '08:30', endTime: '09:10' },  // section 2: 第 01 节
+    { number: 3,  startTime: '09:20', endTime: '10:00' },  // section 3: 第 02 节
+    { number: 4,  startTime: '10:10', endTime: '10:50' },  // section 4: 第 03 节
+    { number: 5,  startTime: '11:00', endTime: '11:40' },  // section 5: 第 04 节
+    { number: 6,  startTime: '11:50', endTime: '12:30' },  // section 6: 第 05 节
+    { number: 7,  startTime: '14:00', endTime: '14:40' },  // section 7: 第 06 节
+    { number: 8,  startTime: '14:50', endTime: '15:30' },  // section 8: 第 07 节
+    { number: 9,  startTime: '15:40', endTime: '16:20' },  // section 9: 第 08 节
+    { number: 10, startTime: '16:30', endTime: '17:10' },  // section 10: 第 09 节
+    { number: 11, startTime: '18:30', endTime: '19:10' },  // section 11: 第 10 节
+    { number: 12, startTime: '19:20', endTime: '20:00' },  // section 12: 第 11 节
+    { number: 13, startTime: '20:10', endTime: '20:50' }   // section 13: 第 12 节
 ];
 
 // ===== 学期配置 =====
@@ -277,19 +289,22 @@ function mergeToCourses(skxxRows, kbxxTasks) {
         if (seen.has(dedupKey)) return;
         seen.add(dedupKey);
 
-        // 早读分支
+        // 早读分支: jcdm2=00 → 设 startSection=1/endSection=1 (TIME_SLOTS[0] = 08:00-08:20)
         if (periods.length === 1 && periods[0] === 0) {
             courses.push(Object.assign({}, baseFields, {
-                isCustomTime: true,
-                customStartTime: MORNING_READING_START,
-                customEndTime: MORNING_READING_END
+                startSection: 1,
+                endSection: 1,
+                courseNature: undefined
             }));
             return;
         }
 
-        // 普通节次
-        const startSection = Math.min(...periods);
-        const endSection = Math.max(...periods);
+        // 普通节次: 所有节次 +1 (为早读让出 section 1)
+        // TIME_SLOTS 数组第 0 项 = 早读 08:00-08:20
+        // TIME_SLOTS 数组第 N 项 = App section N+1
+        // 所以原教务第 1 节 → App section 2, 第 2 节 → section 3, ...
+        const startSection = Math.min(...periods) + 1;
+        const endSection = Math.max(...periods) + 1;
         if (startSection > endSection) return;
         courses.push(Object.assign({}, baseFields, {
             startSection,
