@@ -53,6 +53,18 @@ function parseWeeks(weekStr) {
 }
 
 /**
+ * 判断整段周次是否为单一奇偶（用于输出单双周标记）
+ * 例如 [2,4,6,8] → "双"，[1,3,5] → "单"，其余返回 null。
+ * 少于 2 周的（如只有第 3 周）不判定，避免 App 显示成"第3-3周 双周"。
+ */
+function getWeekParity(weeks) {
+    if (!weeks || weeks.length < 2) return null;
+    if (weeks.every((week) => week % 2 === 1)) return '单';
+    if (weeks.every((week) => week % 2 === 0)) return '双';
+    return null;
+}
+
+/**
  * 将 HTML 转成纯文本，不依赖被页面覆盖的 document.createElement。
  */
 function htmlToText(html) {
@@ -175,6 +187,16 @@ function parseSingleCourse(courseHTML) {
             endSection: endSection,
             weeks: weeks
         };
+
+        // 整段同奇偶（如"1-16周(双)"）→ 输出 isOddWeek / isEvenWeek，
+        // App 端即可显示"第1-16周 双周"，而不是把 2、4、6… 逐周罗列。
+        // weeks 仍按升序展开保留，兼容只认 weeks 的导入实现。
+        const parity = getWeekParity(weeks);
+        if (parity === '单') {
+            result.isOddWeek = true;
+        } else if (parity === '双') {
+            result.isEvenWeek = true;
+        }
 
         if (customTimeMatch) {
             result.isCustomTime = true;
@@ -389,7 +411,12 @@ function extractUnscheduledCourses(element) {
                         day: 0,
                         startSection: 0,
                         endSection: 0,
-                        weeks: weeks
+                        weeks: weeks,
+                        ...(getWeekParity(weeks) === '单'
+                            ? { isOddWeek: true }
+                            : getWeekParity(weeks) === '双'
+                              ? { isEvenWeek: true }
+                              : {})
                     });
                     
                     console.log(`[INFO] 未安排课程: ${courseName}`);
@@ -467,7 +494,7 @@ async function fetchCoursesFromPage() {
         console.log(`[步骤1] ✓ 成功提取 ${courses.length} 门课程\n`);
         console.log('课程详情:');
         courses.forEach((c, i) => {
-            console.log(`  ${i + 1}. ${c.name} | 师:${c.teacher} | 地:${c.position} | 周:${c.weeks.join(',')} | 第${c.startSection}-${c.endSection}节 | 星期${c.day}`);
+            console.log(`  ${i + 1}. ${c.name} | 师:${c.teacher} | 地:${c.position} | 周:${c.weeks.join(',')}${c.isOddWeek ? '(单)' : c.isEvenWeek ? '(双)' : ''} | 第${c.startSection}-${c.endSection}节 | 星期${c.day}`);
         });
         console.log();
         
