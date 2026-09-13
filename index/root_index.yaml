@@ -233,6 +233,11 @@ schools:
     initial: "N"
     resource_folder: "NJUPT"
 
+  - id: "XMU"
+    name: "厦门大学"
+    initial: "X"
+    resource_folder: "XMU"
+
   - id: "XMCU"
     name: "厦门城市职业学院"
     initial: "X"

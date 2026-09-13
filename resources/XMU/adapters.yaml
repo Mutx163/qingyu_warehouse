@@ -1,0 +1,9 @@
+# resources/XMU/adapters.yaml
+adapters:
+  - adapter_id: "XMU_01"
+    adapter_name: "厦门大学教务服务平台"
+    category: "POSTGRADUATE"
+    asset_js_path: "xmu.js"
+    import_url: "https://jw.xmu.edu.cn/new/index.html"
+    maintainer: "jiqian-bbop"
+    description: "厦门大学教务服务平台（金智教育 AMP + gsapp 微应用）。\n登录门户后，脚本会先以 no-cors 方式访问一次课表微应用入口（厦大教务分两层：只登录门户拿不到微应用会话，直接调接口会 401/403；而 CAS 的跳转链要跨域，必须绕过 CORS 检查），再读取 /gsapp/sys/wdkbapp 的「我的课表」接口，一次导入课程、节次作息与学期配置（开学日期、总周数），无需手动设置。\n接口按节次返回多条记录，脚本会自动把连堂课（如第 2-4 节）合并成整块。\n已在研究生账号 + 2026 秋季学期实测通过；本科生如使用同一教务系统可尝试同一适配器并反馈结果。\n非本校在校开发者适配，如有问题请提交 issue 或 PR。"
