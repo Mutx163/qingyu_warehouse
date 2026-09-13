@@ -80,31 +80,90 @@ function xmuEncodeForm(data) {
     .join("&");
 }
 
-// 课表微应用有独立会话。先访问一次入口页，让服务端完成 SSO 并下发 GS_SESSIONID。
-//
-// 必须用 no-cors 模式：CAS 的跳转链会跨域到 ids.xmu.edu.cn，
-// 默认的 cors 模式会在那一跳被浏览器拦下，后面的 Set-Cookie 就拿不到了
-// （实测表现就是接口回 401/403）。no-cors 不检查跨域、照常跟随重定向并写 cookie，
-// 而我们也确实不需要读响应内容。
-async function xmuWarmUpAppSession() {
+// 判断当前是否已经站在课表微应用页面上。
+// 页面能打开就说明微应用会话（GS_SESSIONID）已经建立，此时完全不需要预热。
+function xmuOnAppPage() {
   try {
-    await fetch(SCHOOL_APP_ENTRY, { credentials: "include", mode: "no-cors", redirect: "follow" });
-    return true;
+    return String(window.location.href).indexOf("/gsapp/") >= 0;
   } catch (e) {
-    try {
-      await fetch(SCHOOL_APP_ENTRY, { credentials: "include", redirect: "follow" });
-      return true;
-    } catch (e2) {
-      return false; // 交给后面接口调用给出准确提示
-    }
+    return false;
   }
+}
+
+// 课表微应用有独立会话。若当前还在门户页，就先访问一次入口页触发 SSO 下发 GS_SESSIONID。
+//
+// 两个必须注意的点（都是真机实测踩出来的）：
+//
+// 1) **一定要加超时。** 这个 fetch 在部分 WebView 里既不 resolve 也不 reject，
+//    会把整个导入流程挂死，最后被 App 的 30 秒超时判为「脚本注入失败」。
+//    所以用 AbortController 兜住，超时就放弃——反正会话可能已经建立，
+//    真有问题后面的接口调用会给出准确错误。
+//
+// 2) **用 no-cors。** CAS 的跳转链会跨域到 ids.xmu.edu.cn，
+//    默认的 cors 模式会在那一跳被浏览器拦下，后面的 Set-Cookie 就拿不到了。
+//    no-cors 不检查跨域、照常跟随重定向并写 cookie，响应内容我们也不需要读。
+const XMU_WARMUP_TIMEOUT_MS = 6000;
+
+async function xmuWarmUpAppSession() {
+  if (xmuOnAppPage()) return true; // 已经在课表页，会话现成的
+
+  let signal = null;
+  let abort = null;
+  try {
+    if (typeof AbortController !== "undefined") {
+      const ctl = new AbortController();
+      signal = ctl.signal;
+      abort = function () {
+        try {
+          ctl.abort();
+        } catch (e) {
+          /* 忽略 */
+        }
+      };
+    }
+  } catch (e) {
+    signal = null;
+  }
+
+  let req;
+  try {
+    req = fetch(SCHOOL_APP_ENTRY, {
+      credentials: "include",
+      mode: "no-cors",
+      redirect: "follow",
+      signal: signal || undefined,
+    });
+  } catch (e) {
+    return false;
+  }
+
+  // 用 Promise.race 兜底，而不是只靠 AbortController：
+  // 实测这个 fetch 在 WebView 里可能既不 resolve 也不 reject，
+  // 而 AbortController 未必可用。预热只是锦上添花，绝不能把整个导入流程挂死。
+  const timer = new Promise(function (resolve) {
+    setTimeout(resolve, XMU_WARMUP_TIMEOUT_MS);
+  });
+  await Promise.race([
+    Promise.resolve(req).then(
+      function () {
+        return true;
+      },
+      function () {
+        return false;
+      }
+    ),
+    timer,
+  ]);
+  if (abort) abort(); // 超时的话顺手取消掉悬挂的请求
+  return true;
 }
 
 const XMU_SESSION_HINT =
   "课表微应用的会话还没建立。\n" +
   "厦大教务分两层：只登录门户不够，还要打开一次课表页才会下发微应用会话。\n\n" +
-  "请这样做：在当前页面里点进「我的课表」（或「学生课表查询」），\n" +
-  "等课表显示出来之后，再点一次「执行导入脚本」。";
+  "请把调试记录的「网址」改成下面这个课表页地址（注意是 https），\n" +
+  "重新登录后再执行导入：\n" +
+  SCHOOL_APP_ENTRY;
 
 async function xmuPost(path, data) {
   const resp = await fetch(GSAPP + path, {
