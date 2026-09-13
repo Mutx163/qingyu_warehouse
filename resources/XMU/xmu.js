@@ -535,21 +535,28 @@ async function schoolRunImportFlow() {
     return;
   }
 
-  // 选学期：默认当前学期（列表第一个）
-  let termIndex = 0;
-  if (terms.length > 1) {
-    const labels = terms.map(function (t) {
-      return t.name;
-    });
-    const picked = await bridgePromise.showSingleSelection("选择要导入的学期", JSON.stringify(labels), 0);
-    if (picked === null || picked === undefined || picked < 0) {
-      bridge.showToast("导入已取消");
-      return;
-    }
-    termIndex = picked;
+  // 直接导入最新学期（列表第一个）。
+  //
+  // 这里**刻意不做交互式学期选择**：App 的导入流程有一个 30 秒的总超时，
+  // 而且它不会因为弹窗而暂停。真机实测中，让用户从 18 个学期里挑一个，
+  // 30 秒直接超时失败（日志：import timeout fired -> mark import failed）。
+  //
+  // 需要导入历史学期时，把 window.__XMU_TERM__ 设成学年学期代码（如 "20252"）即可，
+  // 这样常规流程零交互，高级用法也不丢。
+  let term = terms[0];
+  let forced = "";
+  try {
+    forced = String(window.__XMU_TERM__ || "").trim();
+  } catch (e) {
+    forced = "";
   }
-  const term = terms[termIndex];
-  const isCurrentTerm = termIndex === 0;
+  if (forced) {
+    const found = terms.filter(function (t) {
+      return t.code === forced;
+    })[0];
+    if (found) term = found;
+  }
+  const isCurrentTerm = term === terms[0];
 
   bridge.showToast("读取 " + term.name + " 的课表...");
   const xh = await xmuResolveStudentId();
