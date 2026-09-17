@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_73facb2e85ae165e"
+version_id: "IDX_568c83c040c8f86c"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -54,6 +54,14 @@ schools:
     adapters:
       - adapter_id: "CQUT"
         adapter_name: "重庆理工大学教务"
+  - id: "CQUST"
+    adapters:
+      - adapter_id: "CQUST_01"
+        adapter_name: "重庆科技大学本科教务 (WebVPN/推荐)"
+      - adapter_id: "CQUST_02"
+        adapter_name: "重庆科技大学本科教务 (IPv6)"
+      - adapter_id: "CQUST_03"
+        adapter_name: "重庆科技大学本科教务 (IPv4/校园网)"
   - id: "CQTBI"
     adapters:
       - adapter_id: "CQTBI_01"
@@ -854,3 +862,7 @@ schools:
     adapters:
       - adapter_id: "ZJSRU_01"
         adapter_name: "浙江树人学院正方教务"
+  - id: "JSEI"
+    adapters:
+      - adapter_id: "JSEI_01"
+        adapter_name: "江苏电子信息职业学院（webvpn）"
