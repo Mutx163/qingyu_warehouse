@@ -938,6 +938,11 @@ schools:
     initial: "G"
     resource_folder: "GXCME"
 
+  - id: "HAUE"
+    name: "河南工程学院"
+    initial: "H"
+    resource_folder: "HAUE"
+
   - id: "HAUST"
     name: "河南科技大学"
     initial: "H"

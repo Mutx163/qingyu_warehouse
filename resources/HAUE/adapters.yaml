@@ -1,0 +1,9 @@
+# resources/HAUE/adapters.yaml
+adapters:
+  - adapter_id: "HAUE_01"
+    adapter_name: "河南工程学院教务系统"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "haue.js"
+    import_url: "http://124.system.haue.edu.cn/jwglxt/"
+    maintainer: ""
+    description: "适配河南工程学院强智新版教务系统（jwglxt）。登录教务系统后运行，可选学年与学期，导入学期理论课表，自动附带节次时间模板与学期配置。接口域名用 location.origin 动态取，校内(106系统)与校外(124系统)两个入口通用。"
