@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_94c2915e007014ab"
+version_id: "IDX_8ed810cc145ed137"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -206,10 +206,6 @@ schools:
     adapters:
       - adapter_id: "NUAA_01"
         adapter_name: "南京航空航天大学树维教务"
-  - id: "XMU"
-    adapters:
-      - adapter_id: "XMU_01"
-        adapter_name: "厦门大学教务服务平台"
   - id: "XMCU"
     adapters:
       - adapter_id: "XMCU_01"
@@ -418,6 +414,10 @@ schools:
     adapters:
       - adapter_id: "HBMZU"
         adapter_name: "湖北民族大学教务系统"
+  - id: "HBUAS"
+    adapters:
+      - adapter_id: "HBUAS_01"
+        adapter_name: "湖北文理学院超星教务适配"
   - id: "TONGJI"
     adapters:
       - adapter_id: "TONGJI_01"
@@ -858,6 +858,10 @@ schools:
     adapters:
       - adapter_id: "XZHMU_01"
         adapter_name: "徐州医科大学研究生教务"
+  - id: "XMU"
+    adapters:
+      - adapter_id: "XMU_01"
+        adapter_name: "厦门大学教务服务平台"
   - id: "WZZY"
     adapters:
       - adapter_id: "WZZY_01"
@@ -870,3 +874,19 @@ schools:
     adapters:
       - adapter_id: "JSEI_01"
         adapter_name: "江苏电子信息职业学院（webvpn）"
+  - id: "JUST"
+    adapters:
+      - adapter_id: "JUST"
+        adapter_name: "江苏科技大学正方教务"
+  - id: "HUUC"
+    adapters:
+      - adapter_id: "HUUC_01"
+        adapter_name: "河南城建学院"
+  - id: "NANKAI"
+    adapters:
+      - adapter_id: "NANKAI"
+        adapter_name: "南开大学研究生教育综合管理系统"
+  - id: "DLUT"
+    adapters:
+      - adapter_id: "DLUT_01"
+        adapter_name: "大连理工大学本科教务系统"

@@ -243,11 +243,6 @@ schools:
     initial: "N"
     resource_folder: "NUAA"
 
-  - id: "XMU"
-    name: "厦门大学"
-    initial: "X"
-    resource_folder: "XMU"
-
   - id: "XMCU"
     name: "厦门城市职业学院"
     initial: "X"
@@ -502,6 +497,11 @@ schools:
     name: "湖北民族大学"
     initial: "H"
     resource_folder: "HBMZU"
+
+  - id: "HBUAS"
+    name: "湖北文理学院"
+    initial: "H"
+    resource_folder: "HBUAS"
 
   - id: "TONGJI"
     name: "同济大学"
@@ -1063,6 +1063,11 @@ schools:
     initial: "X"
     resource_folder: "XZHMU"
 
+  - id: "XMU"
+    name: "厦门大学"
+    initial: "X"
+    resource_folder: "XMU"
+
   - id: "WZZY"
     name: "梧州职业学院"
     initial: "W"
@@ -1077,3 +1082,24 @@ schools:
     name: "江苏电子信息职业学院"
     initial: "J"
     resource_folder: "JSEI"
+
+  - id: "JUST"
+    name: "江苏科技大学"
+    initial: "J"
+    resource_folder: "JUST"
+
+  - id: "HUUC"
+    name: "河南城建学院"
+    initial: "H"
+    resource_folder: "HUUC"
+
+  - id: "NANKAI"
+    name: "南开大学"
+    initial: "N"
+    resource_folder: "NANKAI"
+    
+  - id: "DLUT"
+    name: "大连理工大学"
+    initial: "D"
+    resource_folder: "DLUT"    
+    
