@@ -938,11 +938,6 @@ schools:
     initial: "G"
     resource_folder: "GXCME"
 
-  - id: "HAUE"
-    name: "河南工程学院"
-    initial: "H"
-    resource_folder: "HAUE"
-
   - id: "HAUST"
     name: "河南科技大学"
     initial: "H"
@@ -1098,6 +1093,11 @@ schools:
     initial: "H"
     resource_folder: "HUUC"
 
+  - id: "HAUE"
+    name: "河南工程学院"
+    initial: "H"
+    resource_folder: "HAUE"
+
   - id: "NANKAI"
     name: "南开大学"
     initial: "N"
@@ -1108,3 +1108,12 @@ schools:
     initial: "D"
     resource_folder: "DLUT"    
     
+  - id: "QFNU"
+    name: "曲阜师范大学"
+    initial: "Q"
+    resource_folder: "QFNU"
+
+  - id: "SCEMI"
+    name: "四川机电职业技术学院"
+    initial: "S"
+    resource_folder: "SCEMI"
