@@ -1093,11 +1093,6 @@ schools:
     initial: "H"
     resource_folder: "HUUC"
 
-  - id: "HAUE"
-    name: "河南工程学院"
-    initial: "H"
-    resource_folder: "HAUE"
-
   - id: "NANKAI"
     name: "南开大学"
     initial: "N"
@@ -1122,3 +1117,9 @@ schools:
     name: "福建师范大学"
     initial: "F"
     resource_folder: "FJNU"
+
+  - id: "HAUE"
+    name: "河南工程学院"
+    initial: "H"
+    resource_folder: "HAUE"
+    
