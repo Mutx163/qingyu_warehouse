@@ -1,0 +1,9 @@
+# resources/NUSTTI/adapters.yaml
+adapters:
+  - adapter_id: "NUSTTI_01"
+    adapter_name: "南京理工大学泰州科技学院教务系统"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "nustti.js"
+    import_url: "https://jwgl.nustti.edu.cn/sso.jsp"
+    maintainer: "Mutx163"
+    description: "适配南京理工大学泰州科技学院强智教务系统（CAS 统一身份认证）。登录教务系统后运行，自动导入当前学期课表并附带节次时间模板与学期配置（总周数/开学日期取自教务主页）。"
