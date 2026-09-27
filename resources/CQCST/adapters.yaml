@@ -1,9 +1,20 @@
-# resources/CQRK/adapters.yaml
+# resources/CQCST/adapters.yaml
+# 两个版本并存（同 CUIT / GZTRC 的做法）：
+#   CQCST_01 标准版    —— 只用上游标准接口，任何 App 都能用，可直接回流上游
+#   CQCST_02 分楼栋版  —— 额外用扩展接口按教学楼分流作息，需宿主支持；不支持时自动退回标准版走法
+# 登录后都需停留在「学期理论课表」页面再运行（该系统菜单里没有「课表」入口）。
 adapters:
   - adapter_id: "CQCST_01"
     adapter_name: "重庆城市科技学院强智适配"
     category: "BACHELOR_AND_ASSOCIATE"
     asset_js_path: "cqcst_01.js"
-    import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/"
+    import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/xskb/xskb_list.do"
     maintainer: "Mutx163"
-    description: "登录后需要点击进入教务系统才可以导入，重庆城市科技学院强智适配，"
+    description: "登录后停留在「学期理论课表」页面再运行。重庆城市科技学院强智适配，自动附带学校公布的作息时间表（两校区共四套，导入时选一套）。"
+  - adapter_id: "CQCST_02"
+    adapter_name: "重庆城市科技学院强智适配（按教学楼自动分流作息）"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "cqcst_02.js"
+    import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/xskb/xskb_list.do"
+    maintainer: "Mutx163"
+    description: "登录后停留在「学期理论课表」页面再运行。同标准版，但导入时只需选校区，软件会按教室名把课程自动分到「主教学楼」与「其他教学楼」两套作息，导入后不用再手动调整上课时间。宿主不支持该功能时自动退回选一套作息。"
