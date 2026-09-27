@@ -54,9 +54,13 @@ async function runImportFlow() {
 
     window.shiguangBridge.showToast("开始提取课表数据...");
 
-    const table = document.getElementById('kbtable') || document.querySelector('.table_border') || document.querySelector('table');
-    if (!table || !table.innerText.includes('星期')) {
-        window.shiguangBridge.showToast("没找到课表！请确保您当前在“学期理论课表”页面。");
+    let table = schoolFindTimetable();
+    if (!table) {
+        if (schoolRedirectToTimetable()) {
+            window.shiguangBridge.showToast("已登录，正在跳转到课表页…跳转后再点一次运行");
+            return;
+        }
+        window.shiguangBridge.showToast("没找到课表！请先登录，再进入“学期理论课表”页面运行。");
         return;
     }
 
@@ -243,6 +247,26 @@ async function schoolApplyTimeScheme() {
         return null;
     }
     return SCHOOL_TIME_SCHEMES[pick].label;
+}
+
+// ===== 课表页定位 =====
+// 强智的登录表单不支持"登录后跳转"参数，登录成功一律落在「学生个人中心」。
+// 所以 import_url 只能指向登录页（这是登录入口，不是最终目标页）；登录后由本段
+// 自动跳到课表页，省得用户手敲网址。
+const SCHOOL_TIMETABLE_URL = "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/xskb/xskb_list.do";
+
+function schoolFindTimetable() {
+    const table = document.getElementById('kbtable')
+        || document.querySelector('.table_border')
+        || document.querySelector('table');
+    return (table && table.innerText.includes('星期')) ? table : null;
+}
+
+// 判据用「退出登录」链接：只有登录之后才会渲染，未登录时不会有。
+function schoolRedirectToTimetable() {
+    if (!document.querySelector('a[href*="Logout"]')) return false;
+    window.location.href = SCHOOL_TIMETABLE_URL;
+    return true;
 }
 
 runImportFlow();
