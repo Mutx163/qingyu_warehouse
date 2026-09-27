@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_0e63fe1802ca00a9"
+version_id: "IDX_155b021a6454dc0f"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -50,8 +50,6 @@ schools:
     adapters:
       - adapter_id: "CQCST_01"
         adapter_name: "重庆城市科技学院强智适配"
-      - adapter_id: "CQCST_02"
-        adapter_name: "重庆城市科技学院强智适配（按教学楼自动分流作息）"
   - id: "CQUT"
     adapters:
       - adapter_id: "CQUT"

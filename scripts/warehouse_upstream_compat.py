@@ -32,11 +32,6 @@ SUPPORTED_ANDROID_BRIDGE_PROMISE = frozenset(
         "saveImportedCourses",
         "savePresetTimeSlots",
         "saveCourseConfig",
-        # 轻屿自有扩展（上游 shiguang_warehouse 无此方法）：一次导入「一套兜底作息 +
-        # 若干按地点关键词分流的作息」，让每门课按教室名自动走对应教学楼的时间模板。
-        # 宿主在 2026-09-27 起实现；脚本必须用 typeof 探测后再调，缺失时退回
-        # savePresetTimeSlots，否则旧版 App 会因方法不存在而中断。
-        "saveLocationTimeSchemes",
     }
 )
 
