@@ -31,6 +31,11 @@ jobs:
       - name: Run compatibility tests
         run: python tests/test_warehouse_upstream_compat.py -v
 
+      # qingyu_only/ 是轻屿专属适配目录：必须永远不被上游同步覆盖、也永不复回上游。
+      # 约束由测试强制（保护名单 + 数据形状 + 登记字段），不是靠约定。
+      - name: Run 轻屿专属适配隔离测试
+        run: python tests/test_qingyu_only_isolation.py -v
+
       # 搜索索引由 build_search_index.py 生成；adapters.yaml/root_index.yaml 变了
       # 却忘记重建索引时，在这里失败提醒重新生成并提交
       - name: 检查搜索索引是否最新

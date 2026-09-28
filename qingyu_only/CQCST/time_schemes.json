@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "note": "重庆城市科技学院作息时间表（学校公布）。第 1、2、5~13 节两校区完全一致，只有第 3、4 节按校区与教学楼类型分档，四套之间最多差 15 分钟。sections 给的是全校共通的 13 节，schemes[].overrides 只写与共通不同的节次。",
+  "sections": {
+    "1": { "startTime": "08:20", "endTime": "09:05" },
+    "2": { "startTime": "09:15", "endTime": "10:00" },
+    "3": { "startTime": "08:20", "endTime": "09:05" },
+    "4": { "startTime": "09:15", "endTime": "10:00" },
+    "5": { "startTime": "14:00", "endTime": "14:45" },
+    "6": { "startTime": "14:55", "endTime": "15:40" },
+    "7": { "startTime": "16:00", "endTime": "16:45" },
+    "8": { "startTime": "16:55", "endTime": "17:40" },
+    "9": { "startTime": "18:50", "endTime": "19:35" },
+    "10": { "startTime": "19:45", "endTime": "20:30" },
+    "11": { "startTime": "20:45", "endTime": "21:30" },
+    "12": { "startTime": "21:45", "endTime": "22:30" },
+    "13": { "startTime": "22:45", "endTime": "23:30" }
+  },
+  "campuses": [
+    {
+      "id": "yongchuan",
+      "name": "永川校区",
+      "schemes": [
+        {
+          "name": "永川校区 · 其他教学楼",
+          "overrides": {
+            "3": { "startTime": "10:20", "endTime": "11:05" },
+            "4": { "startTime": "11:15", "endTime": "12:00" }
+          }
+        },
+        {
+          "name": "永川校区 · A主/主教学楼",
+          "keywords": [{ "pattern": "A主", "mode": "prefix" }],
+          "overrides": {
+            "3": { "startTime": "10:30", "endTime": "11:15" },
+            "4": { "startTime": "11:25", "endTime": "12:10" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "banan",
+      "name": "巴南校区",
+      "schemes": [
+        {
+          "name": "巴南校区 · 其他教学楼",
+          "overrides": {
+            "3": { "startTime": "10:15", "endTime": "11:00" },
+            "4": { "startTime": "11:10", "endTime": "11:55" }
+          }
+        },
+        {
+          "name": "巴南校区 · A1厚德楼/A2博学楼",
+          "keywords": [
+            { "pattern": "A1", "mode": "prefix" },
+            { "pattern": "A2", "mode": "prefix" }
+          ],
+          "overrides": {
+            "3": { "startTime": "10:25", "endTime": "11:10" },
+            "4": { "startTime": "11:20", "endTime": "12:05" }
+          }
+        }
+      ]
+    }
+  ]
+}

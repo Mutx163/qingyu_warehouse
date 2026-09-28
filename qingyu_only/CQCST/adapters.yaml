@@ -1,0 +1,28 @@
+# qingyu_only/CQCST/adapters.yaml
+#
+# 轻屿专属适配登记。**这个目录永远不参与上游同步，也永不回馈上游**：
+#   - 已加入 scripts/warehouse_upstream_compat.py 的 PROTECTED_PATH_PREFIXES，
+#     同步工具会主动拒绝从上游检出该路径（报错「同步路径触及轻屿保护目录/文件」）。
+#   - 它不在 resources/ 下，回流上游的 PR 结构上就带不走。
+#
+# 为什么需要它：上游协议一次导入只能保存一套全局作息（savePresetTimeSlots），
+# 表达不了「主教学楼 10:30 上第三节、其它教学楼 10:20」这种按教室分流的作息。
+# 学校知识放在这里由 App 读取应用，脚本保持 100% 上游标准、可原样回馈。
+#
+# 本文件只能放扁平字段 —— App 的 YAML 解析器是逐行扁平解析，嵌套结构会读成垃圾。
+# 结构化作息数据放在同目录的 time_schemes.json，用下面的 time_schemes_file 引用。
+#
+# asset_js_path 复用 resources/CQCST/cqcst_01.js（同一份脚本），
+# 不另存副本，避免两份解析逻辑改一处漏一处。App 会先在本目录找，找不到再回落到
+# resources/<目录>/。
+adapters:
+  - adapter_id: "CQCST_02"
+    adapter_name: "重庆城市科技学院强智适配（按教学楼自动分流作息）"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "cqcst_01.js"
+    import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/"
+    maintainer: "Mutx163"
+    description: "登录后停留在「学期理论课表」页面再运行（若登录后停在个人中心，点一次运行会自动跳转过去，再点一次即可）。脚本与标准版完全相同；导入时多问一句所在校区，软件随后按教室名把每门课自动分到「主教学楼」与「其他教学楼」两套作息，导入后不用再手动调整上课时间。"
+    # --- 以下为轻屿专属字段，上游 schema 未定义，其它 App 会直接忽略 ---
+    time_schemes_file: "time_schemes.json"
+    campus_prompt: "你在哪个校区？"

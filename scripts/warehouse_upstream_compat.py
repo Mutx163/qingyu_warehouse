@@ -12,12 +12,17 @@ ID_PATTERN = re.compile(r'- id:\s*"([^"]+)"')
 FOLDER_PATTERN = re.compile(r'resource_folder:\s*"([^"]+)"')
 
 # Never checkout these from upstream — Qingyu-only surfaces.
+# `qingyu_only/` holds 轻屿专属适配登记：学校作息等知识放在这里，由 App 读取应用，
+# 脚本本身仍是 resources/ 下那份上游标准脚本。放在这里有两个好处：
+#   1. 同步工具会主动拒绝从上游检出该路径，本地数据不会被覆盖；
+#   2. 它不在 resources/ 下，回流上游的 PR 结构上就带不走。
 PROTECTED_PATH_PREFIXES: tuple[str, ...] = (
     "tools/",
     "docs/",
     "proto/",
     "scripts/",
     ".github/",
+    "qingyu_only/",
     "CONTRIBUTING.md",
     "README.md",
     ".gitignore",

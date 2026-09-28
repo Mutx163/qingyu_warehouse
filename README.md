@@ -155,6 +155,31 @@ docs/
 3. 保留适合轻屿当前流程的浏览器插件调试入口
 4. 在不破坏兼容性的前提下支持必要的轻屿扩展
 
+## `qingyu_only/`：轻屿专属适配目录
+
+`resources/` 里的脚本必须**只用上游标准接口、能原样提交给上游**。但有些学校知识
+上游协议表达不了，例如：
+
+- 学校按「校区 + 教学楼」公布不同时段，一次导入只能存一套全局作息，分流不了
+- 冬季/夏季作息按日期区间切换
+
+这类内容放在 `qingyu_only/<学校ID>/`，由 App 读取并应用，**脚本仍是 `resources/`
+下那份上游标准脚本**（不另存副本，避免两份解析逻辑漂移）。
+
+隔离由工具强制，不是靠约定：
+
+- 已加入 `scripts/warehouse_upstream_compat.py` 的 `PROTECTED_PATH_PREFIXES`，
+  同步工具会主动拒绝从上游检出该路径
+- `tests/test_qingyu_only_isolation.py` 钉住这条约束并已接进 CI
+- 它不在 `resources/` 下，回流上游的 PR 结构上就带不走
+
+每个学校目录里：
+
+| 文件 | 作用 |
+|---|---|
+| `adapters.yaml` | 登记该校的轻屿专属适配条目。**只能放扁平字段**（App 的 YAML 解析器逐行扁平解析，嵌套会读成垃圾） |
+| `time_schemes.json` | 结构化作息数据，由 `adapters.yaml` 的 `time_schemes_file` 引用 |
+
 ## 仓库规则
 
 - 优先保持与上游结构兼容
