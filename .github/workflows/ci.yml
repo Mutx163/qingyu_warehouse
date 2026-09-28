@@ -36,6 +36,11 @@ jobs:
       - name: Run 轻屿专属适配隔离测试
         run: python tests/test_qingyu_only_isolation.py -v
 
+      # 专属作息数据是纯数据、没有 schema 强制：写错时以前只有 App 运行时才炸，
+      # 甚至静默用错时间。校验器把这些拦在 CI，报错指到具体学校与字段。
+      - name: 校验轻屿专属适配数据
+        run: python scripts/validate_qingyu_only.py
+
       # 搜索索引由 build_search_index.py 生成；adapters.yaml/root_index.yaml 变了
       # 却忘记重建索引时，在这里失败提醒重新生成并提交
       - name: 检查搜索索引是否最新

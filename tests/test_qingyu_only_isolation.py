@@ -49,65 +49,92 @@ class QingyuOnlyIsolationTest(unittest.TestCase):
         self.assertTrue(report.ok)
 
 
-class QingyuOnlyCqcstDataTest(unittest.TestCase):
-    """轻屿专属数据文件本身的形状约束。"""
+class QingyuOnlyDataDelegatesToValidatorTest(unittest.TestCase):
+    """数据形状校验由 scripts/validate_qingyu_only.py 负责（单一事实来源）。
+
+    这里只跑一遍校验器，确认「校验器本身没坏」——它同时是 CI 的一个步骤，
+    若它自身抛异常，CI 会在校验数据之前就红。
+    """
+
+    def test_validator_passes_on_current_data(self) -> None:
+        from validate_qingyu_only import main
+
+        self.assertEqual(main(["validate_qingyu_only"]), 0)
+
+    def test_validator_rejects_a_broken_file(self) -> None:
+        # 反向断言：校验器必须真的会拒绝。全绿但其实什么都不检查的校验器
+        # 比没有校验器更危险。
+        import json
+        import tempfile
+
+        from validate_qingyu_only import main as validate_main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            school = Path(tmp) / "TESTBAD"
+            school.mkdir()
+            (school / "adapters.yaml").write_text(
+                "adapters:\n"
+                "  - adapter_id: \"TESTBAD_02\"\n"
+                "    time_schemes_file: \"time_schemes.json\"\n",
+                encoding="utf-8",
+            )
+            (school / "time_schemes.json").write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        # 第 2 节早于第 1 节结束：App 建模板时会拒绝
+                        "sections": {
+                            "1": {"startTime": "08:00", "endTime": "09:00"},
+                            "2": {"startTime": "08:30", "endTime": "09:30"},
+                        },
+                        "campuses": [
+                            {"id": "a", "name": "A", "schemes": [{"name": "兜底"}]}
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertNotEqual(validate_main(["validate_qingyu_only", str(school)]), 0)
+
+
+class QingyuOnlyCqcstSanityTest(unittest.TestCase):
+    """重庆城市科技学院这一例的既知事实（改动作息表时会被提醒）。"""
 
     DATA = ROOT / "qingyu_only" / "CQCST" / "time_schemes.json"
 
     def setUp(self) -> None:
-        self.payload = json.loads(self.DATA.read_text(encoding="utf-8"))
+        self.payload = json.loads(self.DATA.read_text(encoding="utf-8-sig"))
 
-    def test_school_published_timetable_shape(self) -> None:
-        sections = self.payload["sections"]
-        self.assertEqual(len(sections), 13, "学校公布的是 13 节")
-        # 第 1、2、5~13 节两校区一致，只有第 3、4 节分档。
-        self.assertEqual(sections["1"]["startTime"], "08:20")
-        self.assertEqual(sections["13"]["endTime"], "23:30")
-        # 共通表里第 3、4 节必须被各校区的 overrides 全部覆盖。
-        for campus in self.payload["campuses"]:
-            for scheme in campus["schemes"]:
-                for section in ("3", "4"):
-                    self.assertIn(
-                        section,
-                        scheme.get("overrides", {}),
-                        f'{campus["name"]}/{scheme["name"]} 缺第 {section} 节覆盖',
-                    )
-
-    def test_each_campus_has_exactly_one_fallback(self) -> None:
-        # 无 keywords 的那套 = 兜底，会被设为课表默认；多于一套会让默认值不确定。
-        for campus in self.payload["campuses"]:
-            fallbacks = [s for s in campus["schemes"] if not s.get("keywords")]
-            self.assertEqual(len(fallbacks), 1, f'{campus["name"]} 兜底不唯一')
+    def test_thirteen_sections(self) -> None:
+        self.assertEqual(len(self.payload["sections"]), 13, "学校公布的是 13 节")
 
     def test_both_campuses_present(self) -> None:
         ids = {c["id"] for c in self.payload["campuses"]}
         self.assertEqual(ids, {"yongchuan", "banan"})
 
-    def test_building_keywords_are_non_empty(self) -> None:
+    def test_main_building_keyword_is_a_prefix_rule(self) -> None:
+        keywords = [
+            k
+            for campus in self.payload["campuses"]
+            for scheme in campus["schemes"]
+            for k in scheme.get("keywords", [])
+        ]
+        patterns = {k["pattern"] for k in keywords}
+        # A主 = 永川主教学楼；A1/A2 = 巴南厚德楼/博学楼。
+        # 「A1」「A2」不能用 contains：教室名形如 A1234，换 contains 会误吃别栋。
+        self.assertEqual(patterns, {"A主", "A1", "A2"})
+        for keyword in keywords:
+            self.assertEqual(keyword.get("mode", "prefix"), "prefix")
+
+    def test_only_sections_three_and_four_differ(self) -> None:
+        # 学校作息只有第 3、4 节按校区/教学楼分档；若哪天数据里出现别的差异，
+        # 说明基线选错了或抄错了。
         for campus in self.payload["campuses"]:
             for scheme in campus["schemes"]:
-                for keyword in scheme.get("keywords", []):
-                    self.assertTrue(keyword["pattern"].strip())
-                    self.assertIn(keyword.get("mode", "prefix"),
-                                  {"prefix", "contains", "exact"})
-
-    def test_overrides_only_touch_known_sections(self) -> None:
-        known = set(self.payload["sections"].keys())
-        for campus in self.payload["campuses"]:
-            for scheme in campus["schemes"]:
-                self.assertTrue(set(scheme.get("overrides", {})).issubset(known))
-
-    def test_every_clock_is_well_formed(self) -> None:
-        import re
-
-        clock = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
-        entries = list(self.payload["sections"].values())
-        for campus in self.payload["campuses"]:
-            for scheme in campus["schemes"]:
-                entries.extend(scheme.get("overrides", {}).values())
-        for entry in entries:
-            self.assertRegex(entry["startTime"], clock)
-            self.assertRegex(entry["endTime"], clock)
+                self.assertTrue(
+                    set(scheme.get("overrides", {})).issubset({"3", "4"}),
+                    f'{campus["name"]}/{scheme["name"]} 出现了第 3、4 节以外的差异',
+                )
 
 
 class QingyuOnlyRegistrationTest(unittest.TestCase):
