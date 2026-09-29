@@ -31,6 +31,10 @@ jobs:
       - name: Run compatibility tests
         run: python tests/test_warehouse_upstream_compat.py -v
 
+      # 每日同步的提交信息会原样发到维护者邮箱，学校必须带中文名
+      - name: 检查同步提交信息可读性
+        run: python tests/test_sync_commit_message.py -v
+
       # 搜索索引由 build_search_index.py 生成；adapters.yaml/root_index.yaml 变了
       # 却忘记重建索引时，在这里失败提醒重新生成并提交
       - name: 检查搜索索引是否最新
