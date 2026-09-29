@@ -31,6 +31,10 @@ jobs:
       - name: Run compatibility tests
         run: python tests/test_warehouse_upstream_compat.py -v
 
+      # 每日同步的提交信息会原样发到维护者邮箱，学校必须带中文名
+      - name: 检查同步提交信息可读性
+        run: python tests/test_sync_commit_message.py -v
+
       # qingyu_only/ 是轻屿专属适配目录：必须永远不被上游同步覆盖、也永不复回上游。
       # 约束由测试强制（保护名单 + 数据形状 + 登记字段），不是靠约定。
       - name: Run 轻屿专属适配隔离测试

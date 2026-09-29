@@ -591,6 +591,54 @@ def ensure_git_identity(warehouse_dir: Path) -> None:
     run_git(["config", "user.email", email], warehouse_dir)
 
 
+def format_school_list(school_ids: list[str], school_names: dict[str, str]) -> str:
+    """把学校 id 列表渲染成「id 中文名」的可读形式。
+
+    提交信息会出现在每天的同步邮件通知里，只写 HNPTC 这类代号没人认得出，
+    因此凡是能查到中文名的学校都带上名字；查不到的退回纯 id。
+    """
+    parts: list[str] = []
+    for school_id in school_ids:
+        name = (school_names.get(school_id) or "").strip()
+        parts.append(f"{school_id} {name}" if name else school_id)
+    return "、".join(parts)
+
+
+def build_commit_message(
+    school_ids: list[str],
+    *,
+    refresh_ids: list[str] | None = None,
+    refresh_count: int = 0,
+    quarantine_note: str = "",
+    school_names: dict[str, str] | None = None,
+) -> str:
+    """拼出同步提交信息；这段文字会原样出现在 GitHub 每天的邮件通知里。"""
+    names_map = school_names or {}
+    new_line = (
+        format_school_list(school_ids, names_map)
+        if school_ids
+        else "无（仅索引/脚本更新）"
+    )
+    refresh_names = format_school_list(refresh_ids or [], names_map)
+    return (
+        "sync: 从上游同步教务适配更新\n\n"
+        f"新增学校: {new_line}\n"
+        + (
+            f"刷新既有学校: {refresh_count} 个"
+            + (
+                f"（{refresh_names}；已自动前置 v2 桥接兼容垫片）"
+                if refresh_names
+                else "（已自动前置 v2 桥接兼容垫片）"
+            )
+            + "\n"
+            if refresh_count
+            else ""
+        )
+        + (f"隔离不兼容学校: {quarantine_note}\n" if quarantine_note else "")
+        + "来源: shiguang_warehouse/main"
+    )
+
+
 def commit_if_needed(
     warehouse_dir: Path,
     school_ids: list[str],
@@ -598,6 +646,8 @@ def commit_if_needed(
     dry_run: bool,
     refresh_count: int = 0,
     quarantine_note: str = "",
+    school_names: dict[str, str] | None = None,
+    refresh_ids: list[str] | None = None,
 ) -> str | None:
     if not staged_paths:
         return None
@@ -613,21 +663,12 @@ def commit_if_needed(
         return "dry-run"
 
     ensure_git_identity(warehouse_dir)
-    names = ", ".join(school_ids) if school_ids else "index"
-    message = (
-        "sync: 从上游同步教务适配更新\n\n"
-        f"新增学校: {names if school_ids else '无（仅索引/脚本更新）'}\n"
-        + (
-            f"刷新既有学校: {refresh_count} 个（已自动前置 v2 桥接兼容垫片）\n"
-            if refresh_count
-            else ""
-        )
-        + (
-            f"隔离不兼容学校: {quarantine_note}\n"
-            if quarantine_note
-            else ""
-        )
-        + "来源: shiguang_warehouse/main"
+    message = build_commit_message(
+        school_ids,
+        refresh_ids=refresh_ids,
+        refresh_count=refresh_count,
+        quarantine_note=quarantine_note,
+        school_names=school_names,
     )
     run_git(["add", "--", *staged_paths], warehouse_dir)
     # 检出上游索引会把上游版本写入暂存区；若合并结果与 HEAD 完全一致，
@@ -710,7 +751,10 @@ def main() -> int:
     print("[3/6] Build sync plan")
     plan = build_plan(warehouse_dir, refresh_existing=args.refresh_existing)
     upstream_yaml = read_upstream_index(warehouse_dir)
-    school_names = lookup_names(upstream_yaml, plan.upstream_only)
+    # 名字取自上游索引：新增、刷新、隔离三类学校都在这里，提交信息与日志共用一份。
+    school_names = lookup_names(
+        upstream_yaml, plan.upstream_only + plan.refresh_schools
+    )
 
     if not plan.resource_paths:
         print("Already in sync with upstream (no new schools or index drift).")
@@ -723,7 +767,8 @@ def main() -> int:
         for school_id in plan.upstream_only:
             print(f"  + {school_id} {school_names.get(school_id, '')}")
         for school_id in plan.refresh_schools:
-            print(f"  ~ {school_id} (refresh existing scripts)")
+            name = (school_names.get(school_id) or "").strip()
+            print(f"  ~ {school_id} {name} (refresh existing scripts)".rstrip())
 
     print("[4/6] Pre-sync compatibility validation")
     pre_report = run_validation(warehouse_dir, plan, pre_checkout=True)
@@ -826,10 +871,12 @@ def main() -> int:
         staged_paths,
         args.dry_run,
         refresh_count=len(plan.refresh_schools),
+        refresh_ids=plan.refresh_schools,
+        school_names=school_names,
         quarantine_note=(
             (
                 f"{len(quarantined_codes)} 个: "
-                + ", ".join(sorted(quarantined_codes)[:8])
+                + format_school_list(sorted(quarantined_codes)[:8], school_names)
                 + (" …" if len(quarantined_codes) > 8 else "")
             )
             if quarantined_codes
