@@ -276,6 +276,15 @@ function schoolFindLabeledText(root, keywords) {
     return '';
 }
 
+// 课程名后缀里的「[必修]」「[选修]」→ 'required' / 'elective'，认不出给空串。
+// 必须在剥后缀之前问它，否则性质跟着方括号一起被扔掉，App 侧对空值一律按必修
+// 处理（CourseNatureX.fromValue 的 orElse），选修课会被错标成必修。
+function schoolParseCourseNature(name) {
+    const hit = String(name || '').match(/[[［【(（]\s*(必修|选修)\s*[\]］】)）]/);
+    if (!hit) return '';
+    return hit[1] === '必修' ? 'required' : 'elective';
+}
+
 // 找承载「周次(节次)」的那段文本：先看 title 标签；标签没有就在块里找
 // 「含节次方括号、且文本最短」的元素。按元素取值才不会串味——整块拼起来
 // 相邻字段之间是没有分隔符的。
@@ -374,8 +383,11 @@ function schoolExtractCourses(table, courses, courseSet) {
                     }
                     // 强智课程名自带「[32][必修]」这类后缀：[数字] 是**总学时**（对照
                     // 培养方案：学分 × 16 ≈ 总学时，2 学分 → 32、6 学分 → 96），
-                    // 不是学分；[必修]/[选修] 是课程性质。两个都要剥——不剥的话
-                    // 名字直接进课表，且学时那个数字会污染周次匹配。
+                    // 不是学分；[必修]/[选修] 是课程性质。
+                    // 学时那个数字必须剥：不剥的话它会被当成周次，而它远大于 App 的
+                    // 30 周上限，整门课连同 16/17 门一起消失（2026-09-29 真机实测）。
+                    // 性质则先取出来喂给 App，别跟着方括号一起扔。
+                    const courseNature = schoolParseCourseNature(name);
                     name = name.replace(/\[.*?\]/g, '').trim();
                     if (!name) continue;
 
@@ -405,7 +417,9 @@ function schoolExtractCourses(table, courses, courseSet) {
                             day: day,
                             startSection: startSection,
                             endSection: endSection,
-                            weeks: weeks
+                            weeks: weeks,
+                            // 'required' / 'elective'，认不出给空串（等价于必修）
+                            courseNature: courseNature
                         });
                     }
                 }
