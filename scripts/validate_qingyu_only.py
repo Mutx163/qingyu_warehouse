@@ -30,6 +30,60 @@ CLOCK = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 VALID_MODES = {"prefix", "contains", "exact"}
 SUPPORTED_VERSION = 1
 
+# qingyu_only/<学校>/ 下的数据文件按**文件名**决定校验方式。
+#
+# 为什么按文件名而不是「看内容像哪种」：两种文件的顶层键完全不重叠
+# （time_schemes.json 有 version+sections+campuses，session_probe.json 有
+# probe_url），内容嗅探等于给校验器留一条"这次算哪种"的自由裁量，而这份数据
+# 错了会静默影响一整个学期的闹钟。文件名是约定，写错时 CI 直接报"这个文件名
+# 不认识"，比猜错类型再报一堆无关错误清楚得多。
+#
+# 新增数据种类时：在这里登记文件名 + 写一个 validate_<kind>()，并在
+# main() 的分派里加一行。别让 unrecognized 的 json 落到 time_schemes 去。
+SESSION_PROBE_FILENAMES = {"session_probe.json"}
+TIME_SCHEME_FILENAMES = {"time_schemes.json"}
+
+
+def validate_session_probe(path: Path, errors: list[str]) -> None:
+    """校验会话探针配置。
+
+    只查「形状」，不查「对不对」——这个地址指向哪个页面，只有真机登录过才知道，
+    校验器无从判断。真正守住语义的是 App 侧：地址不合法、跨源、探不动，
+    一律降级为「不探针」，行为与没配这个文件时完全一致。
+    """
+    rel = _rel(path)
+    text = _read_text(path)
+    if text is None:
+        errors.append(f"{rel}: 不是 UTF-8 编码，请另存为 UTF-8 后再提交")
+        return
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        errors.append(f"{rel}: JSON 解析失败（第 {exc.lineno} 行）—— {exc.msg}")
+        return
+    if not isinstance(payload, dict):
+        errors.append(f"{rel}: 顶层必须是对象")
+        return
+
+    version = payload.get("version")
+    if version != SUPPORTED_VERSION:
+        errors.append(
+            f"{rel}: version={version!r} 不受支持，当前只接受 {SUPPORTED_VERSION}"
+        )
+
+    probe_url = payload.get("probe_url")
+    if not isinstance(probe_url, str) or not probe_url.strip():
+        errors.append(
+            f"{rel}: 缺少非空的 probe_url——它必须是「不登录就看不到」的内页地址，"
+            "填入口登录页等于永远判成未登录"
+        )
+        return
+    if not (probe_url.startswith("/") or probe_url.startswith("http://") or probe_url.startswith("https://")):
+        errors.append(
+            f"{rel}: probe_url={probe_url!r} 必须以 / 开头（相对登记的 import_url 解析）"
+            "或以 http:// / https:// 开头"
+        )
+
 
 def _clock_minutes(value: str) -> int | None:
     match = CLOCK.match(value or "")
@@ -317,7 +371,18 @@ def main(argv: list[str]) -> int:
                 f"{_rel(folder)}: 没有 *.json 数据文件，专属适配无从生效"
             )
         for data_file in data_files:
-            validate_time_schemes(data_file, errors)
+            if data_file.name in SESSION_PROBE_FILENAMES:
+                validate_session_probe(data_file, errors)
+            elif data_file.name in TIME_SCHEME_FILENAMES:
+                validate_time_schemes(data_file, errors)
+            else:
+                # 不认识的 json 名一律报错：默默拿 time_schemes 的规则去校验另一种
+                # 数据，报出来的错会与真正的问题毫无关系，贡献者会被带偏。
+                errors.append(
+                    f"{_rel(data_file)}: 不认识的数据文件名——"
+                    f"已知 {sorted(TIME_SCHEME_FILENAMES | SESSION_PROBE_FILENAMES)}，"
+                    "新增种类请先在 scripts/validate_qingyu_only.py 登记校验方式"
+                )
             checked += 1
 
     if errors:
