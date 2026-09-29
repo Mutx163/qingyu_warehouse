@@ -179,12 +179,24 @@ function schoolExtractCourses(table, courses, courseSet) {
                         stripped.querySelectorAll('font').forEach(f => f.remove());
                         name = (stripped.textContent || '').trim().split(/\s+/).filter(Boolean)[0] || '';
                     }
+                    // 强智课程名自带「[32][必修]」这类学分/性质后缀，与旧版按行解析时
+                    // 一样剥掉——不剥的话名字直接进课表，且其中的数字会污染周次匹配。
+                    name = name.replace(/\[.*?\]/g, '').trim();
 
                     let teacher = (temp.querySelector('font[title="老师"]')
                         || temp.querySelector('font[title="教师"]'))?.textContent.trim() || "未知";
                     let position = temp.querySelector('font[title="教室"]')?.textContent.trim() || "未知地点";
 
-                    const match = (temp.textContent || '').match(timeRegex);
+                    // 周次节次优先从它的专属标签里取——强智每块都有 font[title=周次(节次)]。
+                    // 兜底才对整块文本匹配，且正则必须更严：周次串后要紧跟可选的单双括号、
+                    // 可选「周」字再接 [N节]。不加严时，课程名里的学分「[32]」会成为正则
+                    // 抓到的第一个数字串，通配一路搭桥到 [1-2节]，周次就变成 [32]——
+                    // App 侧把超学期上限（30 周）的周次整条丢弃，16/17 门课全部消失
+                    //（2026-09-29 真机实测踩到）。
+                    const weekText = temp.querySelector('font[title="周次(节次)"]')?.textContent
+                        || temp.textContent || '';
+                    const match = weekText.match(timeRegex)
+                        || weekText.match(/([\d\-,]+)\s*(?:周)?\s*(?:\((单|双|[^)]*)\))?\s*(?:周)?\s*\[([\d\-]+)节\]/);
                     if (!match) continue;
                     let weeksStr = match[1];
                     let oddEven = match[2];
