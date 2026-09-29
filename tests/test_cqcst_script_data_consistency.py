@@ -184,14 +184,34 @@ _WEEK_SECTION_CASES = [
 _WEEK_SECTION_DRIVER = """
 const fs = require('fs');
 const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-process.stdout.write(JSON.stringify({
-    weekSection: input.weekSection.map(function (text) {
-        return schoolParseWeekSection(text);
-    }),
-    nature: input.nature.map(function (text) {
-        return schoolParseCourseNature(text);
-    }),
-}));
+// 学期选择要调桥接接口，这里给它一个只记录、不真的弹窗的桩
+let shown = null;
+let pickValue = null;
+global.window = global.window || {};
+global.window.shiguangBridgePromise = {
+    showSingleSelection: async function (title, itemsJson) {
+        shown = { title: title, items: JSON.parse(itemsJson) };
+        return pickValue;
+    },
+};
+(async function () {
+    const term = [];
+    for (const c of input.term) {
+        shown = null;
+        pickValue = c.pick;
+        const chosen = await schoolPickTerm({ terms: c.terms, currentTermId: c.current });
+        term.push({ chosen: chosen, shown: shown });
+    }
+    process.stdout.write(JSON.stringify({
+        weekSection: input.weekSection.map(function (text) {
+            return schoolParseWeekSection(text);
+        }),
+        nature: input.nature.map(function (text) {
+            return schoolParseCourseNature(text);
+        }),
+        term: term,
+    }));
+})();
 """
 
 
@@ -223,15 +243,32 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
         ("高等数学", ""),
     ]
 
+    # 学期选择：(页面上的学期清单, 当前学期, 用户在弹窗里选的下标, 期望得到的 termId)
+    # 下标 -1 = 用户取消；terms 为空 = 拿不到学期清单（退回解析当前页面），此时不该弹窗。
+    TERM_CASES = [
+        (
+            ["2027-2028-1", "2026-2027-2", "2026-2027-1", "2025-2026-2", "2025-2026-1"],
+            "2026-2027-1",
+            0,
+            "2026-2027-1",
+        ),
+        (["2027-2028-1", "2026-2027-2", "2026-2027-1", "2025-2026-2"], "2026-2027-1", 2, "2026-2027-2"),
+        (["2027-2028-1", "2026-2027-2", "2026-2027-1", "2025-2026-2"], "2026-2027-1", 3, "2025-2026-2"),
+        # 取消必须与「用现成的」区分开：前者是 null（中止导入），后者是空串（继续）
+        (["2026-2027-1", "2025-2026-2"], "2026-2027-1", -1, None),
+        ([], "", 0, ""),
+    ]
+
     def _run_driver(self) -> dict:
         node = shutil.which("node")
         if node is None:
-            self.skipTest("本机没有 node，跳过周次解析回归")
+            self.skipTest("本机没有 node，跳跳过解析回归")
 
         source = self.SCRIPT.read_text(encoding="utf-8")
-        start = source.index("// ===== 课表提取")
-        end = source.index("// ===== 作息时间表", start)
-        # 「课表提取」这一节里周次/性质解析是纯字符串逻辑（不碰 DOM），切出来直接跑
+        start = source.index("// ===== 课表获取")
+        end = source.index("runImportFlow();", start)
+        # 从「取课表」到流程入口之间的全部逻辑：周次/性质/学期选择/作息都是纯逻辑
+        # （不碰 DOM，fetch 只声明不调用），切出来直接跑。流程入口本身不包含在内。
         extract_section = source[start:end]
         with tempfile.TemporaryDirectory() as tmp:
             driver = Path(tmp) / "week_section_probe.cjs"
@@ -243,6 +280,10 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
                     {
                         "weekSection": [case[0] for case in _WEEK_SECTION_CASES],
                         "nature": [case[0] for case in self.NATURE_CASES],
+                        "term": [
+                            {"terms": case[0], "current": case[1], "pick": case[2]}
+                            for case in self.TERM_CASES
+                        ],
                     },
                     ensure_ascii=False,
                 ),
@@ -254,6 +295,19 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
                 check=True,
             )
         return json.loads(proc.stdout.decode("utf-8"))
+
+    def test_term_picker(self) -> None:
+        got = self._run_driver()["term"]
+        self.assertEqual(len(got), len(self.TERM_CASES))
+        for (terms, current, _pick, expected), actual in zip(self.TERM_CASES, got):
+            self.assertEqual(actual["chosen"], expected, f"学期 {current} 下选 {terms} 选错了")
+            if not terms:
+                # 拿不到学期清单时不该弹窗（老路径直接解析当前页面）
+                self.assertIsNone(actual["shown"])
+            else:
+                self.assertIsNotNone(actual["shown"], "有学期清单时必须让用户选")
+                # 当前学期排第一并标注，默认就是它：不想折腾的人点一下就行
+                self.assertEqual(actual["shown"]["items"][0], f"{current}（当前学期）")
 
     def test_course_nature_parsing(self) -> None:
         got = self._run_driver()["nature"]
