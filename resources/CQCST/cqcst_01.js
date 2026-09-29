@@ -11,7 +11,8 @@
 //
 // 本版本只用上游标准接口（showAlert / showSingleSelection / saveCourseConfig /
 // savePresetTimeSlots / saveImportedCourses），不含任何私有扩展，可直接回流上游。
-// 需要「按教学楼自动分流作息」的，请用 cqcst_02.js（需宿主支持扩展接口）。
+// 「按教学楼自动分流作息」不在脚本里做：脚本只问清用户在哪个校区、下发该校区的
+// 兜底作息，分流由宿主 App 读取专属数据文件（qingyu_only/CQCST/）按教室名完成。
 //
 // ⚠️ 改动前务必读完这两条，都是实测踩出来的：
 //
@@ -203,6 +204,15 @@ const SCHOOL_TIME_SCHEMES = [
     { label: "巴南校区 · A1厚德楼/A2博学楼", third: ["10:25", "11:10"], fourth: ["11:20", "12:05"] },
     { label: "巴南校区 · 其他教学楼",        third: ["10:15", "11:00"], fourth: ["11:10", "11:55"] }
 ];
+// 这张表不直接弹给用户选——楼级选项用户答不了。用户只答「你在哪个校区」，
+// 每个校区按下标取它的兜底作息（「其他教学楼」那套）下发。
+// ⚠️ schemeIndex 按上面的数组下标写死，重排 SCHOOL_TIME_SCHEMES 必须同步改这里；
+// 各套的 third/fourth 数值必须与 qingyu_only/CQCST/time_schemes.json 逐节一致
+//（tests/test_cqcst_script_data_consistency.py 会拦漂移）。
+const SCHOOL_CAMPUS_CHOICES = [
+    { label: "永川校区", schemeIndex: 1 },
+    { label: "巴南校区", schemeIndex: 3 }
+];
 
 // App 按数组下标对应节次（忽略 number 字段），所以必须按下标顺序给出 13 节。
 function schoolBuildTimeSlots(schemeIndex) {
@@ -221,17 +231,18 @@ function schoolNormalizePick(picked, length) {
     return index;
 }
 
-// 返回实际套用的作息名称；返回 null 表示用户取消或保存失败。
+// 返回实际套用的作息名称（校区名）；返回 null 表示用户取消或保存失败。
 async function schoolApplyTimeScheme() {
     const pick = schoolNormalizePick(
         await window.shiguangBridgePromise.showSingleSelection(
-            "选择教学作息时间表",
-            JSON.stringify(SCHOOL_TIME_SCHEMES.map(s => s.label)),
+            "你在哪个校区？",
+            JSON.stringify(SCHOOL_CAMPUS_CHOICES.map(c => c.label)),
             0
         ),
-        SCHOOL_TIME_SCHEMES.length
+        SCHOOL_CAMPUS_CHOICES.length
     );
     if (pick === null) return null;
+    const schemeIndex = SCHOOL_CAMPUS_CHOICES[pick].schemeIndex;
 
     // 学期总周数：课表「周次」下拉最多到第 29 周，当前学期课程最远到第 18 周，
     // 取 20 兼顾后续周次。宿主目前只识别 semesterTotalWeeks 这一个字段。
@@ -240,13 +251,13 @@ async function schoolApplyTimeScheme() {
     );
 
     const ok = await window.shiguangBridgePromise.savePresetTimeSlots(
-        JSON.stringify(schoolBuildTimeSlots(pick))
+        JSON.stringify(schoolBuildTimeSlots(schemeIndex))
     );
     if (!ok) {
         window.shiguangBridge.showToast("作息时间保存失败，课程时间可能不准，可稍后在设置里调整");
         return null;
     }
-    return SCHOOL_TIME_SCHEMES[pick].label;
+    return SCHOOL_CAMPUS_CHOICES[pick].label;
 }
 
 // ===== 课表页定位 =====

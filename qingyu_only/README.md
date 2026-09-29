@@ -51,7 +51,6 @@ adapters:
     description: "……"
     # --- 以下为轻屿专属字段，上游 schema 未定义，其它 App 直接忽略 ---
     time_schemes_file: "time_schemes.json"
-    campus_prompt: "你在哪个校区？"        # 可选；只有多校区时才需要
 ```
 
 ## `time_schemes.json`
