@@ -164,9 +164,11 @@ function schoolFindRenderedTimetable() {
 const SCHOOL_MAX_WEEK = 30;      // 与 App 侧学期周数上限保持一致
 const SCHOOL_MAX_SECTION = 20;
 
-// 节次：[1-2节] / [3节] / ［1，2节］，另兜一层不带方括号的「第1-2节」
-const SCHOOL_SECTION_RE = /[\[［]\s*(\d{1,2})(?:\s*[-~～—–,，]\s*(\d{1,2}))?\s*节\s*[\]］]/;
-const SCHOOL_SECTION_LOOSE_RE = /第?\s*(\d{1,2})\s*[-~～—–]\s*(\d{1,2})\s*节/;
+// 节次：城科实测是 [01-02-03-04节]（连堂四节、两位补零），所以收的是「一串数字」
+// 而不是「起-止」两个数：起 = 第一个，止 = 最后一个。另兜一层「第1-2节」——
+// 必须带「第」字，否则会钻到方括号形态里面去、只截出中间那两个数。
+const SCHOOL_SECTION_RE = /[\[［]\s*(\d{1,2}(?:\s*[-~～—–,，]\s*\d{1,2})*)\s*节\s*[\]］]/;
+const SCHOOL_SECTION_LOOSE_RE = /第\s*(\d{1,2}(?:\s*[-~～—–]\s*\d{1,2})*)\s*节/;
 // 周次串：前面不是数字（防粘上前一个字段），后面紧跟周字/括号/串尾（防学分被当周次）
 const SCHOOL_WEEK_RE = /(\D|^)(\d{1,2}(?:\s*[-~～—–]\s*\d{1,2})*(?:\s*[,，、]\s*\d{1,2}(?:\s*[-~～—–]\s*\d{1,2})*)*)\s*(?=周|[（(]|$)/;
 const SCHOOL_ODD_EVEN_RE = /[（(]\s*(单|双)\s*[)）]/;
@@ -202,15 +204,19 @@ function schoolExpandWeeks(token, oddEven) {
 
 // 从「周次(节次)」文本里解析出 { weeks, startSection, endSection }，认不出返回 null。
 function schoolParseWeekSection(segment) {
-    const text = String(segment || '').replace(/\s+/g, ' ').trim();
+    // 城科实测这一段长这样：「(33)11-12(全部)[01-02-03-04节]」——开头括号里是
+    // 「选课人数」，不摘掉的话「33」和「11-12」会粘成「3311-12」。
+    const text = String(segment || '').replace(/\s+/g, ' ').replace(/^\(\s*\d+\s*\)\s*/, '').trim();
     if (!text) return null;
 
     const section = text.match(SCHOOL_SECTION_RE);
     const loose = section ? null : text.match(SCHOOL_SECTION_LOOSE_RE);
     if (!section && !loose) return null;
     const hit = section || loose;
-    const startSection = parseInt(hit[1], 10);
-    const endSection = parseInt(hit[2] || hit[1], 10);
+    const sections = hit[1].split(/[-~～—–,，]/).map(v => parseInt(v, 10)).filter(v => !isNaN(v));
+    if (!sections.length) return null;
+    const startSection = sections[0];
+    const endSection = sections[sections.length - 1];
     if (!(startSection >= 1 && startSection <= SCHOOL_MAX_SECTION)) return null;
     if (!(endSection >= startSection && endSection <= SCHOOL_MAX_SECTION)) return null;
 
@@ -273,6 +279,9 @@ function schoolFindLabeledText(root, keywords) {
 // 找承载「周次(节次)」的那段文本：先看 title 标签；标签没有就在块里找
 // 「含节次方括号、且文本最短」的元素。按元素取值才不会串味——整块拼起来
 // 相邻字段之间是没有分隔符的。
+// 城科实测：课程块（div.kbcontent）里**没有**周次标签，周次和节次都藏在
+// <span title="选课人数"> 里，写作「(33)11-12(全部)[01-02-03-04节]」；带
+// 周次标签的那个 div 是另一层（div.kbcontent1，可见层），只够看周次、不含节次。
 function schoolFindWeekSegment(root) {
     const labelled = schoolFindLabeledText(root, ['周次', '节次']);
     if (labelled) return labelled;
@@ -318,6 +327,11 @@ function schoolExtractCourses(table, courses, courseSet) {
         // 【关键修复1】同时获取 th 和 td，防止错位
         let cells = rows[i].querySelectorAll('td, th');
 
+        // 课表底部还有一行「备注:」，内容是「课程名 老师 周次;」的汇总文本，不是课程。
+        // 它比表头窄（真实页面里只有 2 列），倒推公式会把它安到周天上——有表头可
+        // 按时，列数比表头少的行一律不是「星期行」。
+        if (dayHeader && cells.length < dayHeader.count) continue;
+
         for (let j = 0; j < cells.length; j++) {
             let cell = cells[j];
 
@@ -328,9 +342,10 @@ function schoolExtractCourses(table, courses, courseSet) {
             if (dayHeader && cells.length === dayHeader.count) day = dayHeader.days[j] || 0;
             if (day < 1 || day > 7) continue; // 左侧的节次列不是星期几，跳过
 
-            // 表头那行的「星期一…星期日」不是课程块。表头同样是 8 列，倒推出的
-            // 星期几照样在 1..7 里，不挡掉就会被当课程解析一次。
-            if (/^(?:星期)?[一二三四五六日天]$/.test((cell.textContent || '').replace(/\s/g, ''))) continue;
+            // 表头那行的「星期一…星期日」不是课程块；底部「备注:」那一格也不是。
+            // 两者都是 8 列，倒推出的星期几照样在 1..7 里，不挡掉会被当课程解析一次。
+            const cellLabel = (cell.textContent || '').replace(/\s/g, '');
+            if (/^(?:星期)?[一二三四五六日天]$/.test(cellLabel) || cellLabel.indexOf('备注') === 0) continue;
 
             // 每格里的课程块放在 div.kbcontent 中；个别模板没有这个类名时整格兜底
             const containers = cell.querySelectorAll('div.kbcontent');
