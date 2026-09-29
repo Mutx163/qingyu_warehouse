@@ -210,6 +210,9 @@ global.window.shiguangBridgePromise = {
             return schoolParseCourseNature(text);
         }),
         term: term,
+        pick: input.pick.map(function (c) {
+            return schoolResolvePickIndex(c.picked, c.labels);
+        }),
     }));
 })();
 """
@@ -259,6 +262,29 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
         ([], "", 0, ""),
     ]
 
+    # 单选弹窗返回值归一：(返回值, 选项, 期望序号)
+    # 「回放文字」那几条是 2026-09-29 真机踩出来的：宿主录制导入回放宏时把**选项文字**
+    # 喂回脚本（录制侧按文字存），脚本按序号解析会得到 NaN，于是每次录制导入都变成
+    # 「导入已取消」。文字必须也能认。
+    _TERM_LABELS = [
+        "2026-2027-1（当前学期）",
+        "2027-2028-1",
+        "2026-2027-2",
+        "2025-2026-2",
+    ]
+    PICK_CASES = [
+        (0, _TERM_LABELS, 0),
+        (3, _TERM_LABELS, 3),
+        ("2026-2027-1（当前学期）", _TERM_LABELS, 0),
+        ("2025-2026-2", _TERM_LABELS, 3),
+        ("巴南校区", ["永川校区", "巴南校区"], 1),
+        ("  巴南校区  ", ["永川校区", "巴南校区"], 1),
+        (-1, _TERM_LABELS, None),
+        (None, _TERM_LABELS, None),
+        ("不存在的选项", _TERM_LABELS, None),
+        (99, _TERM_LABELS, None),
+    ]
+
     def _run_driver(self) -> dict:
         node = shutil.which("node")
         if node is None:
@@ -284,6 +310,10 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
                             {"terms": case[0], "current": case[1], "pick": case[2]}
                             for case in self.TERM_CASES
                         ],
+                        "pick": [
+                            {"picked": case[0], "labels": case[1]}
+                            for case in self.PICK_CASES
+                        ],
                     },
                     ensure_ascii=False,
                 ),
@@ -308,6 +338,16 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
                 self.assertIsNotNone(actual["shown"], "有学期清单时必须让用户选")
                 # 当前学期排第一并标注，默认就是它：不想折腾的人点一下就行
                 self.assertEqual(actual["shown"]["items"][0], f"{current}（当前学期）")
+
+    def test_pick_index_normalization(self) -> None:
+        got = self._run_driver()["pick"]
+        self.assertEqual(len(got), len(self.PICK_CASES))
+        for (picked, labels, expected), actual in zip(self.PICK_CASES, got):
+            self.assertEqual(
+                actual,
+                expected,
+                f"弹窗回 {picked!r}（选项 {labels}）应当归一成 {expected}",
+            )
 
     def test_course_nature_parsing(self) -> None:
         got = self._run_driver()["nature"]

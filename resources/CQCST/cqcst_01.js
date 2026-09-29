@@ -185,10 +185,27 @@ function schoolPickTerm(fetched) {
         JSON.stringify(labels),
         0
     ).then(picked => {
-        const index = schoolNormalizePick(picked, labels.length);
+        const index = schoolResolvePickIndex(picked, labels);
         if (index === null) return null;
         return current && index === 0 ? current : others[index - (current ? 1 : 0)];
     });
+}
+
+// 单选弹窗返回值的归一。
+//
+// 正常是**序号**（宿主手动弹窗与后台自动回答都回序号）。但宿主在「录制导入」回放
+// 宏时回的是**选项文字**——录制侧把用户选的那一项按文字存进宏（见宿主
+// `_showScriptSingleSelectionDialog` 的记录分支），回放时原样喂回来。文字喂给
+// 期望序号的脚本，`Number(文字)` 是 NaN，于是每次录制导入都判成「取消」，用户在
+// 屏幕上只看到刚点确认就变成「导入已取消」（2026-09-29 真机实测）。
+//
+// 所以两种都认：像数字就当序号，不像数字就按文字在选项里找。都对不上才算取消。
+function schoolResolvePickIndex(picked, labels) {
+    if (typeof picked === 'string' && picked.trim() !== '' && isNaN(Number(picked))) {
+        const byLabel = labels.findIndex(label => label === picked.trim());
+        return byLabel >= 0 ? byLabel : null;
+    }
+    return schoolNormalizePick(picked, labels.length);
 }
 
 // 取当前学期的课表页，顺带读出页面上的学期清单。请求失败时退回解析当前已渲染的
@@ -571,13 +588,14 @@ function schoolNormalizePick(picked, length) {
 
 // 返回实际套用的作息名称（校区名）；返回 null 表示用户取消或保存失败。
 async function schoolApplyTimeScheme(isCurrentTerm) {
-    const pick = schoolNormalizePick(
+    // 走 schoolResolvePickIndex：录制导入回放时宿主回的是选项文字而不是序号。
+    const pick = schoolResolvePickIndex(
         await window.shiguangBridgePromise.showSingleSelection(
             "你在哪个校区？",
             JSON.stringify(SCHOOL_CAMPUS_CHOICES.map(c => c.label)),
             0
         ),
-        SCHOOL_CAMPUS_CHOICES.length
+        SCHOOL_CAMPUS_CHOICES.map(c => c.label)
     );
     if (pick === null) return null;
     const schemeIndex = SCHOOL_CAMPUS_CHOICES[pick].schemeIndex;
