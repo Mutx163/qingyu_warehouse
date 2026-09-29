@@ -183,10 +183,15 @@ _WEEK_SECTION_CASES = [
 
 _WEEK_SECTION_DRIVER = """
 const fs = require('fs');
-const cases = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-process.stdout.write(JSON.stringify(cases.map(function (text) {
-    return schoolParseWeekSection(text);
-})));
+const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+process.stdout.write(JSON.stringify({
+    weekSection: input.weekSection.map(function (text) {
+        return schoolParseWeekSection(text);
+    }),
+    nature: input.nature.map(function (text) {
+        return schoolParseCourseNature(text);
+    }),
+}));
 """
 
 
@@ -197,11 +202,28 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
     1..30（`ImportExportLogic.maxAllowedSemesterWeekCount`）时才收这条记录，
     超出的周次连同整门课一起消失，而脚本侧看着一切正常。所以周次怎么解析都
     得在这里钉住，不能靠真机再看。
+
+    课程性质同理：App 侧 `CourseNatureX.fromValue` 认不出就当必修，脚本把
+    `[必修]`/`[选修]` 一起剥掉的话，选修课会被静默错标成必修。
     """
 
     SCRIPT = ROOT / "resources" / "CQCST" / "cqcst_01.js"
 
-    def test_week_section_parsing(self) -> None:
+    # 课程名 → 期望的 courseNature。真实样本里 [数字] 是总学时（学分 × 16）。
+    NATURE_CASES = [
+        ("工装夹具设计及应用课程设计[32][必修]", "required"),
+        ("毕业实习[96][必修]", "required"),
+        ("机械控制工程[48][选修]", "elective"),
+        ("模具设计[40][选修]", "elective"),
+        ("某某某（选修）", "elective"),
+        ("某某某【必修】", "required"),
+        ("形势与政策4[16][必修]", "required"),
+        # 没有性质标记就给空串：App 侧对空值按必修处理，不要瞎猜成别的
+        ("高等数学[32]", ""),
+        ("高等数学", ""),
+    ]
+
+    def _run_driver(self) -> dict:
         node = shutil.which("node")
         if node is None:
             self.skipTest("本机没有 node，跳过周次解析回归")
@@ -209,7 +231,7 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
         source = self.SCRIPT.read_text(encoding="utf-8")
         start = source.index("// ===== 课表提取")
         end = source.index("// ===== 作息时间表", start)
-        # 「课表提取」这一节里周次解析是纯字符串逻辑（不碰 DOM），切出来直接跑
+        # 「课表提取」这一节里周次/性质解析是纯字符串逻辑（不碰 DOM），切出来直接跑
         extract_section = source[start:end]
         with tempfile.TemporaryDirectory() as tmp:
             driver = Path(tmp) / "week_section_probe.cjs"
@@ -217,7 +239,13 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
             # 走文件而不是管道：Windows 下管道的编码跟随系统区域设置，中文会被搅坏
             cases_file = Path(tmp) / "cases.json"
             cases_file.write_text(
-                json.dumps([case[0] for case in _WEEK_SECTION_CASES], ensure_ascii=False),
+                json.dumps(
+                    {
+                        "weekSection": [case[0] for case in _WEEK_SECTION_CASES],
+                        "nature": [case[0] for case in self.NATURE_CASES],
+                    },
+                    ensure_ascii=False,
+                ),
                 encoding="utf-8",
             )
             proc = subprocess.run(
@@ -225,7 +253,16 @@ class CqcstWeekSectionParsingTest(unittest.TestCase):
                 capture_output=True,
                 check=True,
             )
-        parsed = json.loads(proc.stdout.decode("utf-8"))
+        return json.loads(proc.stdout.decode("utf-8"))
+
+    def test_course_nature_parsing(self) -> None:
+        got = self._run_driver()["nature"]
+        self.assertEqual(len(got), len(self.NATURE_CASES))
+        for (name, expected), actual in zip(self.NATURE_CASES, got):
+            self.assertEqual(actual, expected, f"「{name}」的课程性质不对")
+
+    def test_week_section_parsing(self) -> None:
+        parsed = self._run_driver()["weekSection"]
 
         self.assertEqual(len(parsed), len(_WEEK_SECTION_CASES))
         for (text, weeks, start_section, end_section), got in zip(_WEEK_SECTION_CASES, parsed):
