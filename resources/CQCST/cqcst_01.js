@@ -297,10 +297,13 @@ async function schoolApplyTimeScheme() {
     if (pick === null) return null;
     const schemeIndex = SCHOOL_CAMPUS_CHOICES[pick].schemeIndex;
 
-    // 学期总周数：课表「周次」下拉最多到第 29 周，当前学期课程最远到第 18 周，
-    // 取 20 兼顾后续周次。宿主目前只识别 semesterTotalWeeks 这一个字段。
+    // 学期配置（⚠️ 每学期更新）：
+    // 总周数——课表「周次」下拉最多到第 29 周，当前学期课程最远到第 18 周，
+    //   取 20 兼顾后续周次。
+    // 开学日期——2026-2027-1 学期第一周从 2026-09-07（周一）起。App 用它算当前
+    //   周次，不预置的话首页周数对不上。历法校验在 App 侧（warehouseSemesterStartDate）。
     await window.shiguangBridgePromise.saveCourseConfig(
-        JSON.stringify({ semesterTotalWeeks: 20 })
+        JSON.stringify({ semesterTotalWeeks: 20, semesterStartDate: "2026-09-07" })
     );
 
     const ok = await window.shiguangBridgePromise.savePresetTimeSlots(
