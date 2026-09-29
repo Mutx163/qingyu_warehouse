@@ -65,7 +65,7 @@ async function runImportFlow() {
 
     const alertConfirmed = await window.shiguangBridgePromise.showAlert(
         "强智教务解析",
-        "将自动获取本学期课表数据并导入，是否继续？（请确认已登录教务系统）",
+        "将自动获取课表数据并导入，是否继续？（请确认已登录教务系统）",
         "确认导入"
     );
     if (!alertConfirmed) return;
@@ -73,9 +73,24 @@ async function runImportFlow() {
     try {
         window.shiguangBridge.showToast("正在从教务系统获取课表...");
 
-        const table = await schoolGetTimetableTable();
-        if (!table) {
+        const fetched = await schoolGetTimetable();
+        if (!fetched.table) {
             window.shiguangBridge.showToast("没拿到课表！请先登录教务系统，登录后在任意页面再点一次运行。");
+            return;
+        }
+
+        // 拿不到学期清单时（退回「解析当前已渲染页面」的老路径）就不问学期，
+        // 直接用手上这份课表；空串表示「就用它」，与用户取消（null）区分开。
+        const termId = fetched.terms.length ? await schoolPickTerm(fetched) : "";
+        if (termId === null) {
+            window.shiguangBridge.showToast("导入已取消");
+            return;
+        }
+        const isCurrentTerm = !termId || termId === fetched.currentTermId;
+
+        const table = await schoolGetTimetableForTerm(termId, fetched);
+        if (!table) {
+            window.shiguangBridge.showToast(`没拿到 ${termId} 学期的课表，可能该学期没有选课记录。`);
             return;
         }
 
@@ -84,25 +99,28 @@ async function runImportFlow() {
         const unparsed = schoolExtractCourses(table, courses, courseSet);
 
         if (courses.length === 0) {
-            window.shiguangBridge.showToast("没有抓取到数据，可能当前学期课表为空。");
+            window.shiguangBridge.showToast(`没有抓取到数据，${termId || '当前'} 学期的课表可能是空的。`);
             return;
         }
 
         // 认不出周次的块要当面说，不能悄悄少几门课让用户以为课表本来就空。
         const unparsedNote = unparsed > 0 ? `（另有 ${unparsed} 个课程块没认出周次，已跳过）` : "";
-        window.shiguangBridge.showToast(`提取成功，共发现 ${courses.length} 门课程${unparsedNote}，正在保存...`);
+        const termNote = isCurrentTerm ? "" : `（${termId} 学期）`;
+        window.shiguangBridge.showToast(`提取成功，共发现 ${courses.length} 门课程${termNote}${unparsedNote}，正在保存...`);
 
-        const timeSchemeLabel = await schoolApplyTimeScheme();
+        const timeSchemeLabel = await schoolApplyTimeScheme(isCurrentTerm);
         if (timeSchemeLabel === null) {
             window.shiguangBridge.showToast("导入已取消");
             return;
         }
 
         const saveResult = await window.shiguangBridgePromise.saveImportedCourses(JSON.stringify(courses));
-        
+
         if (saveResult) {
-            window.shiguangBridge.showToast(`导入大功告成！已套用「${timeSchemeLabel}」作息`);
-            window.shiguangBridge.notifyTaskCompletion(); 
+            window.shiguangBridge.showToast(
+                `导入大功告成！已套用「${timeSchemeLabel}」作息${isCurrentTerm ? "" : "（往期学期不改开学日期，需要的话在设置里调）"}`
+            );
+            window.shiguangBridge.notifyTaskCompletion();
         }
 
     } catch (error) {
@@ -117,18 +135,84 @@ async function runImportFlow() {
 // 旧版靠「跳到课表页再点一次运行」，本版直接请求后这一步不再需要。
 
 const SCHOOL_TIMETABLE_URL = "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/xskb/xskb_list.do";
+// 学期下拉里除了当前学期还列多少个。43 个全列出来在手机上没法选，只取最近的几个
+// （约 4 年，够任何年级回看自己的课表）。
+const SCHOOL_TERM_CHOICES = 8;
 
-async function schoolGetTimetableTable() {
+// 请求课表页。termId 为空 = 当前学期（GET 直出，与浏览器里直接打开这个网址一致）；
+// 给了学期就是 POST xnxq01id——页面上那个「学期」下拉就是这么切提交的，参数名
+// 也从页面上读，不写死。返回 { doc, table, terms, currentTermId }。
+async function schoolFetchTimetable(termId) {
+    const init = termId
+        ? {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "xnxq01id=" + encodeURIComponent(termId),
+            credentials: "include"
+        }
+        : { credentials: "include" };
+
+    const resp = await fetch(SCHOOL_TIMETABLE_URL, init);
+    if (!resp.ok) throw new Error("课表页返回 " + resp.status);
+    const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
+    const table = doc.getElementById('kbtable') || doc.querySelector('.table_border');
+    const termSelect = doc.querySelector('select[name="xnxq01id"]');
+    // 学期清单直接读页面上的下拉：学校自己的权威列表，新增学期不用改脚本。
+    const terms = termSelect
+        ? Array.from(termSelect.options)
+            .map(o => (o.value || '').trim())
+            .filter(Boolean)
+        : [];
+    const selected = termSelect ? (termSelect.value || '').trim() : '';
+    return {
+        doc: doc,
+        table: table,
+        terms: terms,
+        currentTermId: selected || (terms.length ? terms[0] : '')
+    };
+}
+
+// 让用户选学期，返回 termId；取消返回 null。当前学期排第一并标注，默认就是它——
+// 绝大多数人只想导当前学期，不该为这个多花一次点击。
+function schoolPickTerm(fetched) {
+    const current = fetched.currentTermId;
+    const others = fetched.terms.filter(t => t !== current).slice(0, SCHOOL_TERM_CHOICES - 1);
+    if (!current && others.length === 0) return Promise.resolve("");
+
+    const labels = (current ? [current + "（当前学期）"] : []).concat(others);
+    return window.shiguangBridgePromise.showSingleSelection(
+        "导入哪个学期的课表？",
+        JSON.stringify(labels),
+        0
+    ).then(picked => {
+        const index = schoolNormalizePick(picked, labels.length);
+        if (index === null) return null;
+        return current && index === 0 ? current : others[index - (current ? 1 : 0)];
+    });
+}
+
+// 取当前学期的课表页，顺带读出页面上的学期清单。请求失败时退回解析当前已渲染的
+// 课表（那时拿不到学期信息，currentTermId 为空串）。
+async function schoolGetTimetable() {
     try {
-        const resp = await fetch(SCHOOL_TIMETABLE_URL, { credentials: "include" });
-        if (!resp.ok) throw new Error("课表页返回 " + resp.status);
-        const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
-        const table = doc.getElementById('kbtable') || doc.querySelector('.table_border');
-        if (table) return table;
+        const fetched = await schoolFetchTimetable(null);
+        if (fetched.table) return fetched;
     } catch (error) {
         console.warn("直接请求课表页失败，退回解析当前页面:", error);
     }
-    return schoolFindRenderedTimetable();
+    return { table: schoolFindRenderedTimetable(), terms: [], currentTermId: "" };
+}
+
+// 按用户选的学期再要一次课表；选的就是当前学期时直接复用第一次的结果，不多发请求。
+async function schoolGetTimetableForTerm(termId, fetched) {
+    if (!termId || termId === fetched.currentTermId) return fetched.table;
+    try {
+        const other = await schoolFetchTimetable(termId);
+        if (other.table) return other.table;
+    } catch (error) {
+        console.warn("请求 " + termId + " 学期课表失败:", error);
+    }
+    return null;
 }
 
 function schoolFindRenderedTimetable() {
@@ -486,7 +570,7 @@ function schoolNormalizePick(picked, length) {
 }
 
 // 返回实际套用的作息名称（校区名）；返回 null 表示用户取消或保存失败。
-async function schoolApplyTimeScheme() {
+async function schoolApplyTimeScheme(isCurrentTerm) {
     const pick = schoolNormalizePick(
         await window.shiguangBridgePromise.showSingleSelection(
             "你在哪个校区？",
@@ -499,13 +583,16 @@ async function schoolApplyTimeScheme() {
     const schemeIndex = SCHOOL_CAMPUS_CHOICES[pick].schemeIndex;
 
     // 学期配置（⚠️ 每学期更新）：
-    // 总周数——课表「周次」下拉最多到第 29 周，当前学期课程最远到第 18 周，
-    //   取 20 兼顾后续周次。
+    // 总周数——实测三个学期的课表最远周次分别是 20（2025-2026-2）、18（2026-2027-1）、
+    //   17（2025-2026-1），学校一个学期 20 周，取 20。
     // 开学日期——2026-2027-1 学期第一周从 2026-09-07（周一）起。App 用它算当前
     //   周次，不预置的话首页周数对不上。历法校验在 App 侧（warehouseSemesterStartDate）。
-    await window.shiguangBridgePromise.saveCourseConfig(
-        JSON.stringify({ semesterTotalWeeks: 20, semesterStartDate: "2026-09-07" })
-    );
+    //   ⚠️ 只对当前学期下发：往期学期沿用 App 里现有的开学日期（App 侧 copyWith
+    //   对缺省字段保持原值，不会被清空），硬塞一个别的学期的日期只会算错周次。
+    const config = isCurrentTerm
+        ? { semesterTotalWeeks: 20, semesterStartDate: "2026-09-07" }
+        : { semesterTotalWeeks: 20 };
+    await window.shiguangBridgePromise.saveCourseConfig(JSON.stringify(config));
 
     const ok = await window.shiguangBridgePromise.savePresetTimeSlots(
         JSON.stringify(schoolBuildTimeSlots(schemeIndex))
