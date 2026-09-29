@@ -15,7 +15,10 @@ Why this test exists: App 侧「不额外问用户」的设计是——脚本问
 
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -122,6 +125,88 @@ class CqcstScriptDataConsistencyTest(unittest.TestCase):
         )
         self.assertTrue(used, "应当至少调用一个桥接方法，否则这条检查形同虚设")
         self.assertEqual(used - set(SUPPORTED_ANDROID_BRIDGE_PROMISE), set())
+
+
+# 「周次(节次)」文本 → (周次, 起节, 止节)。四条都对应真机踩过的坑：
+#   1) 课程名里的学分「[32]」不能被当成周次（越 30 周会被 App 整条丢弃，
+#      17 门课只进 1 门就是这么来的）；
+#   2) 教室号与周次在 textContent 里会粘成一串（「一教A205」+「1-16周」），
+#      起始周要从粘住的那串数字末尾借回来；
+#   3) 多段周次（1-8周(单),11-16周(单)）两段都要；
+#   4) 真越界（96 周）时必须认不出，不能截成 6 周推给 App。
+_WEEK_SECTION_CASES = [
+    # (整块文本, 期望周次, 期望起节, 期望止节)
+    ("高等数学[32][必修]张三一教A2051-16周(单)[1-2节]", [1, 3, 5, 7, 9, 11, 13, 15], 1, 2),
+    ("大学英语[16][必修]李四三教B1021-16周(单)[3-4节]", [1, 3, 5, 7, 9, 11, 13, 15], 3, 4),
+    ("1-16周(单)[1-2节]", [1, 3, 5, 7, 9, 11, 13, 15], 1, 2),
+    ("1-16周[1-2节]", list(range(1, 17)), 1, 2),
+    ("田径场A20510-16周[5-6节]", [10, 11, 12, 13, 14, 15, 16], 5, 6),
+    ("1,3,5,7,9,11,13,15周(单)[7-8节]", [1, 3, 5, 7, 9, 11, 13, 15], 7, 8),
+    ("1-8周(单),11-16周(单)[9-10节]", [1, 3, 5, 7, 11, 13, 15], 9, 10),
+    ("3周[3节]", [3], 3, 3),
+    ("1-8周(双)[11-12节]", [2, 4, 6, 8], 11, 12),
+    ("第1-2节 1-16周", list(range(1, 17)), 1, 2),
+    ("怪课[96][必修]某某一教A99996周[1-2节]", None, None, None),
+    ("高等数学[32][必修]张三", None, None, None),
+]
+
+_WEEK_SECTION_DRIVER = """
+const fs = require('fs');
+const cases = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+process.stdout.write(JSON.stringify(cases.map(function (text) {
+    return schoolParseWeekSection(text);
+})));
+"""
+
+
+class CqcstWeekSectionParsingTest(unittest.TestCase):
+    """周次/节次解析必须守住 App 侧的入库条件。
+
+    App 侧 `warehouse_course_import_logic.dart` 的 `_parseOne` 只在周次全部落在
+    1..30（`ImportExportLogic.maxAllowedSemesterWeekCount`）时才收这条记录，
+    超出的周次连同整门课一起消失，而脚本侧看着一切正常。所以周次怎么解析都
+    得在这里钉住，不能靠真机再看。
+    """
+
+    SCRIPT = ROOT / "resources" / "CQCST" / "cqcst_01.js"
+
+    def test_week_section_parsing(self) -> None:
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("本机没有 node，跳过周次解析回归")
+
+        source = self.SCRIPT.read_text(encoding="utf-8")
+        start = source.index("// ===== 课表提取")
+        end = source.index("// ===== 作息时间表", start)
+        # 「课表提取」这一节里周次解析是纯字符串逻辑（不碰 DOM），切出来直接跑
+        extract_section = source[start:end]
+        with tempfile.TemporaryDirectory() as tmp:
+            driver = Path(tmp) / "week_section_probe.cjs"
+            driver.write_text(extract_section + _WEEK_SECTION_DRIVER, encoding="utf-8")
+            # 走文件而不是管道：Windows 下管道的编码跟随系统区域设置，中文会被搅坏
+            cases_file = Path(tmp) / "cases.json"
+            cases_file.write_text(
+                json.dumps([case[0] for case in _WEEK_SECTION_CASES], ensure_ascii=False),
+                encoding="utf-8",
+            )
+            proc = subprocess.run(
+                [node, str(driver), str(cases_file)],
+                capture_output=True,
+                check=True,
+            )
+        parsed = json.loads(proc.stdout.decode("utf-8"))
+
+        self.assertEqual(len(parsed), len(_WEEK_SECTION_CASES))
+        for (text, weeks, start_section, end_section), got in zip(_WEEK_SECTION_CASES, parsed):
+            if weeks is None:
+                self.assertIsNone(got, f"「{text}」应当认不出（宁可不导入也不推错周次）")
+                continue
+            self.assertIsNotNone(got, f"「{text}」应当解析出周次节次")
+            self.assertEqual(got["weeks"], weeks, f"「{text}」的周次不对")
+            self.assertEqual(got["startSection"], start_section, f"「{text}」的起始节不对")
+            self.assertEqual(got["endSection"], end_section, f"「{text}」的结束节不对")
+            for week in got["weeks"]:
+                self.assertTrue(1 <= week <= 30, f"「{text}」的周次 {week} 会被 App 整条丢弃")
 
 
 if __name__ == "__main__":
