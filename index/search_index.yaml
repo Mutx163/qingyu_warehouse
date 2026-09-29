@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_54935f88bcd8fb56"
+version_id: "IDX_475e46b1501f098c"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -84,6 +84,10 @@ schools:
     adapters:
       - adapter_id: "SHZQ_01"
         adapter_name: "上海中侨职业技术大学教务系统"
+  - id: "SANYEDU"
+    adapters:
+      - adapter_id: "SANYEDU"
+        adapter_name: "湖南三一工业职业技术学院教务系统"
   - id: "HNZY"
     adapters:
       - adapter_id: "HNZY_01"
@@ -146,6 +150,10 @@ schools:
     adapters:
       - adapter_id: "HNVCC_01"
         adapter_name: "湖南商务职业技术学院强智适配"
+  - id: "HNPTC"
+    adapters:
+      - adapter_id: "HNPTC_01"
+        adapter_name: "湘邮教学管理平台"
   - id: "IMUT"
     adapters:
       - adapter_id: "IMUT_01"
@@ -174,6 +182,10 @@ schools:
     adapters:
       - adapter_id: "FAFU_01"
         adapter_name: "福建农林大学教务系统"
+  - id: "FJPIT"
+    adapters:
+      - adapter_id: "FJPIT_01"
+        adapter_name: "福建信息职业技术学院"
   - id: "FOSU"
     adapters:
       - adapter_id: "FOSU_01"
@@ -922,3 +934,11 @@ schools:
     adapters:
       - adapter_id: "SHIEP_01"
         adapter_name: "上海电力大学本科教务系统"
+  - id: "SHNU"
+    adapters:
+      - adapter_id: "SHNU_01"
+        adapter_name: "上海师范大学树维教务"
+  - id: "NEFU"
+    adapters:
+      - adapter_id: "NEFU_01"
+        adapter_name: "东北林业大学本部本科生院"
