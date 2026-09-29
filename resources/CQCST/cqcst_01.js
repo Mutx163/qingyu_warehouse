@@ -27,6 +27,10 @@
 //
 // 2) 强智该系统的教师字段是 <font title="老师">，不是别的学校常见的
 //    <font title="教师">。标签提取两种都查，别只写一个。
+//
+// 3) 「周次(节次)」这个 title 不是每个学校都挂着，挂不上时会退回整块文本——
+//    那条路上正则必须两头卡死，否则学分/教室号会被当周次，17 门课只进 1 门。
+//    详见下面「课表提取」处的四条教训。
 
 async function runImportFlow() {
     // 兼容电脑端测试
@@ -77,18 +81,16 @@ async function runImportFlow() {
 
         let courses = [];
         let courseSet = new Set();
-        schoolExtractCourses(table, courses, courseSet);
+        const unparsed = schoolExtractCourses(table, courses, courseSet);
 
         if (courses.length === 0) {
             window.shiguangBridge.showToast("没有抓取到数据，可能当前学期课表为空。");
             return;
         }
 
-        window.shiguangBridge.showToast(`提取成功，共发现 ${courses.length} 门课程，正在保存...`);
-
-        // 诊断（定位「App 侧判不可用」用，修完撤）：App 只把 console.error 收进
-        // 导入日志，所以这里用 error 级别把实际下发的课程记录原样打出来。
-        console.error('qingyu-courses-dump ' + JSON.stringify(courses));
+        // 认不出周次的块要当面说，不能悄悄少几门课让用户以为课表本来就空。
+        const unparsedNote = unparsed > 0 ? `（另有 ${unparsed} 个课程块没认出周次，已跳过）` : "";
+        window.shiguangBridge.showToast(`提取成功，共发现 ${courses.length} 门课程${unparsedNote}，正在保存...`);
 
         const timeSchemeLabel = await schoolApplyTimeScheme();
         if (timeSchemeLabel === null) {
@@ -136,14 +138,180 @@ function schoolFindRenderedTimetable() {
     return (table && table.innerText.includes('星期')) ? table : null;
 }
 
-// ===== 课表提取（DOM 结构取值，不依赖页面排版）=====
-// 每个课程块的字段靠源码里的 title 标签取；课程名没有统一标签，取块内第一个
-// 非空文本节点（强智模板里课程名总是直接挂在块开头，友校同平台脚本已验证），
-// 万一模板变化取不到，再把带标签的字段从文本里剔掉当兜底。
-// 周次节次仍沿用旧版实测过的正则，对整块文本匹配——无论它挂在哪个标签里。
+// ===== 课表提取（按 DOM 结构取值，不依赖页面排版）=====
+// 课程块里教师 / 教室 / 周次(节次) 都带 title 关键字（各校写法不一，按关键字找，
+// 不写死整串），课程名取块内第一个非空文本节点。取值顺序从「最确定的字段」
+// 退到「整块文本」，每层都必须自己独立成立。
+//
+// ⚠️ 改这块之前先读完下面四条，全是真机踩出来的：
+//
+// 1) 离屏 DOM 没有排版、innerText 不换行，**不能**把整块文本丢给宽松正则按行取
+//    字段（旧版那么写，离屏实测 0 条课程）。现在只按 DOM 结构和 title 标签取值。
+//
+// 2) 整块文本只配当最后兜底，而且正则两头都得卡死：周次串「前面不能是数字」
+//    （非数字或串首），否则教室「一教A205」紧接周次「1-16周」会在 textContent
+//    里粘成「A2051-16周」；「后面必须紧跟周字/括号/串尾」，否则课程名里的学分
+//    「[32]」会被当成周次——通配一路搭到 [1-2节]，周次变成 32。
+//
+// 3) 粘上前一个字段的数字时，丢的是起始周不是整段：按「起 ≤ 止 ≤ 30」从粘住的
+//    那串数字末尾借 1~2 位补回来（「A2051-16周」借出「1-16周」）。
+//
+// 4) 周次推给 App 之前必须自查 1..30。App 侧学期上限 30 周
+//    (ImportExportLogic.maxAllowedSemesterWeekCount)，越界周次会被 App 整条丢弃
+//    ——脚本侧看着「17 门都推了」，用户那边却是「只进了 1 门」（2026-09-29 真机
+//    实测）。宁可这里跳过并提示，也不要推垃圾数据过去。
 
+const SCHOOL_MAX_WEEK = 30;      // 与 App 侧学期周数上限保持一致
+const SCHOOL_MAX_SECTION = 20;
+
+// 节次：[1-2节] / [3节] / ［1，2节］，另兜一层不带方括号的「第1-2节」
+const SCHOOL_SECTION_RE = /[\[［]\s*(\d{1,2})(?:\s*[-~～—–,，]\s*(\d{1,2}))?\s*节\s*[\]］]/;
+const SCHOOL_SECTION_LOOSE_RE = /第?\s*(\d{1,2})\s*[-~～—–]\s*(\d{1,2})\s*节/;
+// 周次串：前面不是数字（防粘上前一个字段），后面紧跟周字/括号/串尾（防学分被当周次）
+const SCHOOL_WEEK_RE = /(\D|^)(\d{1,2}(?:\s*[-~～—–]\s*\d{1,2})*(?:\s*[,，、]\s*\d{1,2}(?:\s*[-~～—–]\s*\d{1,2})*)*)\s*(?=周|[（(]|$)/;
+const SCHOOL_ODD_EVEN_RE = /[（(]\s*(单|双)\s*[)）]/;
+// 表头「星期一…星期日」→ 1..7
+const SCHOOL_DAY_HEADINGS = {
+    '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 7, '天': 7
+};
+
+// "1-16" / "1,3,5" / "1-8,11-16" → 周次数组；单双周在这里展开。
+// 越界（不在 1..30）的那段直接不要——它只会让 App 整条丢掉这门课。
+function schoolExpandWeeks(token, oddEven) {
+    const weeks = [];
+    for (const piece of String(token).split(/[,，、]/)) {
+        const seg = piece.trim();
+        if (!seg) continue;
+        const parts = seg.split(/[-~～—–]/).map(v => parseInt(v, 10));
+        if (parts.length >= 2) {
+            const from = parts[0];
+            const to = parts[parts.length - 1];
+            if (isNaN(from) || isNaN(to) || from < 1 || to < from || to > SCHOOL_MAX_WEEK) continue;
+            for (let w = from; w <= to; w++) {
+                if (oddEven === '单' && w % 2 === 0) continue;
+                if (oddEven === '双' && w % 2 !== 0) continue;
+                weeks.push(w);
+            }
+        } else {
+            if (isNaN(parts[0]) || parts[0] < 1 || parts[0] > SCHOOL_MAX_WEEK) continue;
+            weeks.push(parts[0]);
+        }
+    }
+    return [...new Set(weeks)].sort((a, b) => a - b);
+}
+
+// 从「周次(节次)」文本里解析出 { weeks, startSection, endSection }，认不出返回 null。
+function schoolParseWeekSection(segment) {
+    const text = String(segment || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+
+    const section = text.match(SCHOOL_SECTION_RE);
+    const loose = section ? null : text.match(SCHOOL_SECTION_LOOSE_RE);
+    if (!section && !loose) return null;
+    const hit = section || loose;
+    const startSection = parseInt(hit[1], 10);
+    const endSection = parseInt(hit[2] || hit[1], 10);
+    if (!(startSection >= 1 && startSection <= SCHOOL_MAX_SECTION)) return null;
+    if (!(endSection >= startSection && endSection <= SCHOOL_MAX_SECTION)) return null;
+
+    // 方括号形态（强智模板）里周次写在节次前面；不带方括号的「第1-2节」两段
+    // 前后都可能，把节次本身剔掉，剩下的都是周次信息。
+    const head = section ? text.slice(0, section.index) : text.replace(hit[0], ' ');
+    const oddEven = (head.match(SCHOOL_ODD_EVEN_RE) || [null, ''])[1] || '';
+    const weeks = schoolWeeksFromHead(head, oddEven);
+    if (!weeks.length) return null;
+    return { weeks, startSection, endSection };
+}
+
+// 从周次行（节次方括号之前的那段文本）里取周次串。
+function schoolWeeksFromHead(head, oddEven) {
+    const compact = head.replace(/\s+/g, '');
+    const candidates = [];
+
+    // 整段就是纯周次记法时最省事：「1-8周(单),11-16周(单)」剥掉周字与括号组后
+    // 剩「1-8,11-16」，两段都在。必须「剥完只剩数字和分隔符」才走这条——学分
+    // 「[32]」和教室号都带别的字符，会被这个条件挡在外面。
+    const clean = compact.replace(/[（(][^)）]*[)）]/g, '').replace(/(?:星期|周)/g, '');
+    if (/^[\d,，、\-~～—–]+$/.test(clean)) candidates.push(clean);
+
+    const matched = SCHOOL_WEEK_RE.exec(compact);
+    if (matched) {
+        const token = matched[2];
+        const before = compact.slice(0, matched.index + matched[1].length);
+        const glued = /(\d+)([-~～—–])$/.exec(before);
+        if (glued) {
+            // 「…A2051-16周」：起始周粘在教室号的数字尾巴上，借 1~2 位试试。
+            // 借不出合理的就只认这个 token（起 > 止 的那种展开时会被丢掉）。
+            for (const take of [2, 1]) {
+                if (glued[1].length < take) continue;
+                candidates.push(glued[1].slice(-take) + glued[2] + token);
+            }
+        }
+        candidates.push(token);
+    }
+
+    for (const candidate of candidates) {
+        const weeks = schoolExpandWeeks(candidate, oddEven);
+        if (weeks.length) return weeks;
+    }
+    // 认不出就返回空：宁可让上层报「有 N 块没认出周次」，也不推猜出来的周次。
+    return [];
+}
+
+// 按 title 关键字找字段文本。各校 title 写法不一（老师/教师/任课教师…），
+// 写死整串总会漏，所以按关键字匹配；同关键字取第一个有内容的。
+function schoolFindLabeledText(root, keywords) {
+    for (const el of Array.from(root.querySelectorAll('[title]'))) {
+        const title = el.getAttribute('title') || '';
+        if (!keywords.some(k => title.indexOf(k) >= 0)) continue;
+        const text = (el.textContent || '').trim();
+        if (text) return text;
+    }
+    return '';
+}
+
+// 找承载「周次(节次)」的那段文本：先看 title 标签；标签没有就在块里找
+// 「含节次方括号、且文本最短」的元素。按元素取值才不会串味——整块拼起来
+// 相邻字段之间是没有分隔符的。
+function schoolFindWeekSegment(root) {
+    const labelled = schoolFindLabeledText(root, ['周次', '节次']);
+    if (labelled) return labelled;
+
+    const candidates = [];
+    for (const el of Array.from(root.querySelectorAll('font, span, div, p, td, li'))) {
+        const text = el.textContent || '';
+        if (SCHOOL_SECTION_RE.test(text)) candidates.push(text);
+    }
+    if (candidates.length) {
+        candidates.sort((a, b) => a.length - b.length);
+        return candidates[0];
+    }
+    return root.textContent || '';
+}
+
+// 找表头那一行的「星期一…星期日」，把列号对成星期几。表头左侧是「节次/星期」
+// 这类标题，所以按 7 个星期齐全来认。认不到返回 null，调用方退回倒推。
+function schoolBuildDayHeader(table) {
+    const rows = table.querySelectorAll('tr');
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+        const cells = rows[i].querySelectorAll('td, th');
+        if (cells.length < 8) continue;
+        const days = {};
+        for (let j = 0; j < cells.length; j++) {
+            const label = (cells[j].textContent || '').replace(/[\s星期周]/g, '');
+            const day = SCHOOL_DAY_HEADINGS[label];
+            if (day) days[j] = day;
+        }
+        if (Object.keys(days).length >= 7) return { count: cells.length, days: days };
+    }
+    return null;
+}
+
+// 返回「没认出周次节次、被跳过的块数」——调用方要把它告诉用户，不能悄悄少课。
 function schoolExtractCourses(table, courses, courseSet) {
-    const timeRegex = /([\d\-,]+)(?:\((单|双|.*?)\))?.*?\[([\d\-]+)节\]/;
+    const dayHeader = schoolBuildDayHeader(table);
+    let unparsed = 0;
+    let sample = '';
 
     const rows = table.querySelectorAll('tr');
     for (let i = 0; i < rows.length; i++) {
@@ -153,10 +321,16 @@ function schoolExtractCourses(table, courses, courseSet) {
         for (let j = 0; j < cells.length; j++) {
             let cell = cells[j];
 
-            // 【关键修复2】逆向计算星期几：倒数第7列永远是周一，倒数第1列永远是周日
-            // 这能完美解决强智系统左侧节次列导致的数据错位问题，也天然兼容跨行课
+            // 【关键修复2】星期几：表头这一行对得上就按表头定位（多一列「备注」时
+            // 倒推会整体错一天，而错一天是看不出来的错）；对不上才用「倒数第 7 列
+            // 是周一」的倒推——强智左侧的节次列会把它顶偏，倒推能兼容。
             let day = 7 - (cells.length - 1 - j);
-            if (day < 1 || day > 7) continue; // 如果算出来不是1-7，说明是左侧的节次列，跳过
+            if (dayHeader && cells.length === dayHeader.count) day = dayHeader.days[j] || 0;
+            if (day < 1 || day > 7) continue; // 左侧的节次列不是星期几，跳过
+
+            // 表头那行的「星期一…星期日」不是课程块。表头同样是 8 列，倒推出的
+            // 星期几照样在 1..7 里，不挡掉就会被当课程解析一次。
+            if (/^(?:星期)?[一二三四五六日天]$/.test((cell.textContent || '').replace(/\s/g, ''))) continue;
 
             // 每格里的课程块放在 div.kbcontent 中；个别模板没有这个类名时整格兜底
             const containers = cell.querySelectorAll('div.kbcontent');
@@ -181,53 +355,28 @@ function schoolExtractCourses(table, courses, courseSet) {
                     if (!name) {
                         const stripped = temp.cloneNode(true);
                         stripped.querySelectorAll('font').forEach(f => f.remove());
-                        name = (stripped.textContent || '').trim().split(/\s+/).filter(Boolean)[0] || '';
+                        name = (stripped.textContent || '').trim().split(/\s*\n\s*/)[0].split(/\s+/).filter(Boolean)[0] || '';
                     }
                     // 强智课程名自带「[32][必修]」这类学分/性质后缀，与旧版按行解析时
                     // 一样剥掉——不剥的话名字直接进课表，且其中的数字会污染周次匹配。
                     name = name.replace(/\[.*?\]/g, '').trim();
+                    if (!name) continue;
 
-                    let teacher = (temp.querySelector('font[title="老师"]')
-                        || temp.querySelector('font[title="教师"]'))?.textContent.trim() || "未知";
-                    let position = temp.querySelector('font[title="教室"]')?.textContent.trim() || "未知地点";
+                    let teacher = schoolFindLabeledText(temp, ['老师', '教师', '任课'])
+                        .replace(/^任课教师[:：]?/, '').trim() || "未知";
+                    let position = schoolFindLabeledText(temp, ['教室', '地点', '场地']) || "未知地点";
 
-                    // 周次节次优先从它的专属标签里取——强智每块都有 font[title=周次(节次)]。
-                    // 兜底才对整块文本匹配，且正则必须更严：周次串后要紧跟可选的单双括号、
-                    // 可选「周」字再接 [N节]。不加严时，课程名里的学分「[32]」会成为正则
-                    // 抓到的第一个数字串，通配一路搭桥到 [1-2节]，周次就变成 [32]——
-                    // App 侧把超学期上限（30 周）的周次整条丢弃，16/17 门课全部消失
-                    //（2026-09-29 真机实测踩到）。
-                    const weekText = temp.querySelector('font[title="周次(节次)"]')?.textContent
-                        || temp.textContent || '';
-                    const match = weekText.match(timeRegex)
-                        || weekText.match(/([\d\-,]+)\s*(?:周)?\s*(?:\((单|双|[^)]*)\))?\s*(?:周)?\s*\[([\d\-]+)节\]/);
-                    if (!match) continue;
-                    let weeksStr = match[1];
-                    let oddEven = match[2];
-                    let sectionsStr = match[3];
-
-                    let weeks = [];
-                    let weekParts = weeksStr.split(',');
-                    for (let wp of weekParts) {
-                        if (wp.includes('-')) {
-                            let parts2 = wp.split('-');
-                            let start = parseInt(parts2[0]);
-                            let end = parseInt(parts2[1]);
-                            for (let w = start; w <= end; w++) {
-                                if (oddEven === '单' && w % 2 === 0) continue;
-                                if (oddEven === '双' && w % 2 !== 0) continue;
-                                weeks.push(w);
-                            }
-                        } else {
-                            weeks.push(parseInt(wp));
+                    const weekSection = schoolParseWeekSection(schoolFindWeekSegment(temp));
+                    if (!weekSection) {
+                        unparsed++;
+                        if (!sample) {
+                            sample = (temp.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
                         }
+                        continue;
                     }
-
-                    let secParts = sectionsStr.split('-');
-                    let startSection = parseInt(secParts[0]);
-                    let endSection = parseInt(secParts[secParts.length - 1]);
-
-                    if (!name || !weeks.length || isNaN(startSection)) continue;
+                    const weeks = weekSection.weeks;
+                    const startSection = weekSection.startSection;
+                    const endSection = weekSection.endSection;
 
                     let uid = `${name}-${day}-${startSection}-${endSection}-${weeks.join(',')}`;
                     if (!courseSet.has(uid)) {
@@ -246,6 +395,11 @@ function schoolExtractCourses(table, courses, courseSet) {
             }
         }
     }
+
+    if (unparsed > 0) {
+        console.warn(`qingyu-cqcst: ${unparsed} 个课程块没认出周次节次，例：${sample}`);
+    }
+    return unparsed;
 }
 
 // ===== 作息时间表（学校公布：永川校区 / 巴南校区 教学作息时间表）=====
