@@ -86,6 +86,10 @@ async function runImportFlow() {
 
         window.shiguangBridge.showToast(`提取成功，共发现 ${courses.length} 门课程，正在保存...`);
 
+        // 诊断（定位「App 侧判不可用」用，修完撤）：App 只把 console.error 收进
+        // 导入日志，所以这里用 error 级别把实际下发的课程记录原样打出来。
+        console.error('qingyu-courses-dump ' + JSON.stringify(courses));
+
         const timeSchemeLabel = await schoolApplyTimeScheme();
         if (timeSchemeLabel === null) {
             window.shiguangBridge.showToast("导入已取消");
