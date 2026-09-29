@@ -14,15 +14,19 @@
 // 「按教学楼自动分流作息」不在脚本里做：脚本只问清用户在哪个校区、下发该校区的
 // 兜底作息，分流由宿主 App 读取专属数据文件（qingyu_only/CQCST/）按教室名完成。
 //
-// ⚠️ 改动前务必读完这两条，都是实测踩出来的：
+// 数据获取方式：登录后**任意页面**点运行即可——脚本直接请求课表页
+// /xskb/xskb_list.do（带会话 Cookie，拿到的就是浏览器里看到的那份默认学期课表），
+// 字段靠源码里的标签（font[title=老师/教师、教室、周次(节次)]）提取，不依赖页面
+// 排版。请求失败或页面异常时，退回解析当前已渲染出来的课表。
 //
-// 1) 本脚本只解析「当前浏览器已渲染出来的」课表 DOM，不发任何请求。因此 import_url
-//    必须直指课表页，且用户要停留在该页再运行。切勿改写成像某些学校那样 fetch 课表
-//    接口——离屏 DOM 没有排版，innerText 不换行，下面基于「按行取字段」的解析会整体
-//    失效（实测返回 0 条课程）。
+// ⚠️ 改字段提取方式前先读完这两条历史教训，都是实测踩出来的：
+//
+// 1) 旧版按「渲染后 innerText 按行取字段」解析，必须停留在课表页才能跑。离屏 DOM
+//    没有排版、innerText 不换行，按行解析会整体失效（实测 0 条课程）。这正是本版
+//    改成「fetch + 标签取值」的原因——别再退回去。
 //
 // 2) 强智该系统的教师字段是 <font title="老师">，不是别的学校常见的
-//    <font title="教师">。本脚本按 innerText 行序取值，天然不依赖该属性名。
+//    <font title="教师">。标签提取两种都查，别只写一个。
 
 async function runImportFlow() {
     // 兼容电脑端测试
@@ -53,108 +57,30 @@ async function runImportFlow() {
         };
     }
 
-    window.shiguangBridge.showToast("开始提取课表数据...");
-
-    let table = schoolFindTimetable();
-    if (!table) {
-        if (schoolRedirectToTimetable()) {
-            window.shiguangBridge.showToast("已登录，正在跳转到课表页…跳转后再点一次运行");
-            return;
-        }
-        window.shiguangBridge.showToast("没找到课表！请先登录，再进入“学期理论课表”页面运行。");
-        return;
-    }
+    window.shiguangBridge.showToast("准备提取课表数据...");
 
     const alertConfirmed = await window.shiguangBridgePromise.showAlert(
         "强智教务解析",
-        "已检测到课表页面，是否提取数据并导入？",
+        "将自动获取本学期课表数据并导入，是否继续？（请确认已登录教务系统）",
         "确认导入"
     );
     if (!alertConfirmed) return;
 
     try {
-        let courses = [];
-        let courseSet = new Set(); 
-        let rows = table.querySelectorAll('tr');
+        window.shiguangBridge.showToast("正在从教务系统获取课表...");
 
-        // 遍历课表每一行（跳过第一行的表头）
-        for (let i = 1; i < rows.length; i++) {
-            // 【关键修复1】同时获取 th 和 td，防止错位
-            let cells = rows[i].querySelectorAll('td, th'); 
-            
-            for (let j = 0; j < cells.length; j++) {
-                let cell = cells[j];
-                
-                // 【关键修复2】逆向计算星期几：倒数第7列永远是周一，倒数第1列永远是周日
-                // 这能完美解决强智系统左侧节次列导致的数据错位问题
-                let day = 7 - (cells.length - 1 - j);
-                if (day < 1 || day > 7) continue; // 如果算出来不是1-7，说明是左侧的节次列，跳过
-
-                let blocks = cell.innerText.split(/-{5,}/).map(t => t.trim()).filter(t => t);
-
-                for (let block of blocks) {
-                    if (!block || block === ' ' || block === '') continue;
-                    
-                    let lines = block.split(/\n/).map(l => l.trim()).filter(l => l);
-                    if(lines.length < 4) {
-                        lines = block.split(/\s+/).map(l => l.trim()).filter(l => l);
-                    }
-                    if (lines.length < 3) continue;
-
-                    let name = lines[0].replace(/\[.*?\]/g, '').trim();
-                    let teacher = lines[1] || "未知";
-
-                    let timeRegex = /([\d\-,]+)(?:\((单|双|.*?)\))?.*?\[([\d\-]+)节\]/;
-                    let timeLineIdx = lines.findIndex(l => timeRegex.test(l));
-                    if (timeLineIdx === -1) continue;
-
-                    let match = lines[timeLineIdx].match(timeRegex);
-                    let weeksStr = match[1]; 
-                    let oddEven = match[2];  
-                    let sectionsStr = match[3]; 
-
-                    let position = (timeLineIdx + 1 < lines.length) ? lines[timeLineIdx + 1] : "未知地点";
-
-                    let weeks = [];
-                    let weekParts = weeksStr.split(',');
-                    for (let wp of weekParts) {
-                        if (wp.includes('-')) {
-                            let parts = wp.split('-');
-                            let start = parseInt(parts[0]);
-                            let end = parseInt(parts[1]);
-                            for (let w = start; w <= end; w++) {
-                                if (oddEven === '单' && w % 2 === 0) continue;
-                                if (oddEven === '双' && w % 2 !== 0) continue;
-                                weeks.push(w);
-                            }
-                        } else {
-                            weeks.push(parseInt(wp));
-                        }
-                    }
-
-                    let secParts = sectionsStr.split('-');
-                    let startSection = parseInt(secParts[0]);
-                    let endSection = parseInt(secParts[secParts.length - 1]);
-
-                    let uid = `${name}-${day}-${startSection}-${endSection}-${weeks.join(',')}`;
-                    if (!courseSet.has(uid)) {
-                        courseSet.add(uid);
-                        courses.push({
-                            name: name,
-                            teacher: teacher,
-                            position: position,
-                            day: day,
-                            startSection: startSection,
-                            endSection: endSection,
-                            weeks: weeks
-                        });
-                    }
-                }
-            }
+        const table = await schoolGetTimetableTable();
+        if (!table) {
+            window.shiguangBridge.showToast("没拿到课表！请先登录教务系统，登录后在任意页面再点一次运行。");
+            return;
         }
 
+        let courses = [];
+        let courseSet = new Set();
+        schoolExtractCourses(table, courses, courseSet);
+
         if (courses.length === 0) {
-            window.shiguangBridge.showToast("没有抓取到数据，可能当前表格为空。");
+            window.shiguangBridge.showToast("没有抓取到数据，可能当前学期课表为空。");
             return;
         }
 
@@ -176,6 +102,133 @@ async function runImportFlow() {
     } catch (error) {
         console.error("解析过程中发生错误:", error);
         window.shiguangBridge.showToast("解析出错啦: " + error.message);
+    }
+}
+
+// ===== 课表获取：优先直接请求课表页，失败退回当前已渲染的课表 =====
+// 课表页是 GET 直出的（浏览器里就是直接打开这个网址），所以不带参数请求即可，
+// 内容与登录后手动进入课表页看到的完全一致。强智登录后固定落在「学生个人中心」，
+// 旧版靠「跳到课表页再点一次运行」，本版直接请求后这一步不再需要。
+
+const SCHOOL_TIMETABLE_URL = "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/xskb/xskb_list.do";
+
+async function schoolGetTimetableTable() {
+    try {
+        const resp = await fetch(SCHOOL_TIMETABLE_URL, { credentials: "include" });
+        if (!resp.ok) throw new Error("课表页返回 " + resp.status);
+        const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
+        const table = doc.getElementById('kbtable') || doc.querySelector('.table_border');
+        if (table) return table;
+    } catch (error) {
+        console.warn("直接请求课表页失败，退回解析当前页面:", error);
+    }
+    return schoolFindRenderedTimetable();
+}
+
+function schoolFindRenderedTimetable() {
+    const table = document.getElementById('kbtable')
+        || document.querySelector('.table_border')
+        || document.querySelector('table');
+    return (table && table.innerText.includes('星期')) ? table : null;
+}
+
+// ===== 课表提取（DOM 结构取值，不依赖页面排版）=====
+// 每个课程块的字段靠源码里的 title 标签取；课程名没有统一标签，取块内第一个
+// 非空文本节点（强智模板里课程名总是直接挂在块开头，友校同平台脚本已验证），
+// 万一模板变化取不到，再把带标签的字段从文本里剔掉当兜底。
+// 周次节次仍沿用旧版实测过的正则，对整块文本匹配——无论它挂在哪个标签里。
+
+function schoolExtractCourses(table, courses, courseSet) {
+    const timeRegex = /([\d\-,]+)(?:\((单|双|.*?)\))?.*?\[([\d\-]+)节\]/;
+
+    const rows = table.querySelectorAll('tr');
+    for (let i = 0; i < rows.length; i++) {
+        // 【关键修复1】同时获取 th 和 td，防止错位
+        let cells = rows[i].querySelectorAll('td, th');
+
+        for (let j = 0; j < cells.length; j++) {
+            let cell = cells[j];
+
+            // 【关键修复2】逆向计算星期几：倒数第7列永远是周一，倒数第1列永远是周日
+            // 这能完美解决强智系统左侧节次列导致的数据错位问题，也天然兼容跨行课
+            let day = 7 - (cells.length - 1 - j);
+            if (day < 1 || day > 7) continue; // 如果算出来不是1-7，说明是左侧的节次列，跳过
+
+            // 每格里的课程块放在 div.kbcontent 中；个别模板没有这个类名时整格兜底
+            const containers = cell.querySelectorAll('div.kbcontent');
+            const blocksIn = containers.length ? Array.from(containers) : [cell];
+
+            for (const container of blocksIn) {
+                const parts = container.innerHTML.split(/-{5,}/);
+                for (const part of parts) {
+                    if (!part || !part.trim()) continue;
+
+                    // 离屏 DOM 没有排版，innerText 不可用：把块塞进临时节点按结构取值
+                    const temp = document.createElement('div');
+                    temp.innerHTML = part;
+
+                    let name = '';
+                    for (const node of temp.childNodes) {
+                        if (node.nodeType === 3 && node.textContent.trim() !== '') {
+                            name = node.textContent.trim();
+                            break;
+                        }
+                    }
+                    if (!name) {
+                        const stripped = temp.cloneNode(true);
+                        stripped.querySelectorAll('font').forEach(f => f.remove());
+                        name = (stripped.textContent || '').trim().split(/\s+/).filter(Boolean)[0] || '';
+                    }
+
+                    let teacher = (temp.querySelector('font[title="老师"]')
+                        || temp.querySelector('font[title="教师"]'))?.textContent.trim() || "未知";
+                    let position = temp.querySelector('font[title="教室"]')?.textContent.trim() || "未知地点";
+
+                    const match = (temp.textContent || '').match(timeRegex);
+                    if (!match) continue;
+                    let weeksStr = match[1];
+                    let oddEven = match[2];
+                    let sectionsStr = match[3];
+
+                    let weeks = [];
+                    let weekParts = weeksStr.split(',');
+                    for (let wp of weekParts) {
+                        if (wp.includes('-')) {
+                            let parts2 = wp.split('-');
+                            let start = parseInt(parts2[0]);
+                            let end = parseInt(parts2[1]);
+                            for (let w = start; w <= end; w++) {
+                                if (oddEven === '单' && w % 2 === 0) continue;
+                                if (oddEven === '双' && w % 2 !== 0) continue;
+                                weeks.push(w);
+                            }
+                        } else {
+                            weeks.push(parseInt(wp));
+                        }
+                    }
+
+                    let secParts = sectionsStr.split('-');
+                    let startSection = parseInt(secParts[0]);
+                    let endSection = parseInt(secParts[secParts.length - 1]);
+
+                    if (!name || !weeks.length || isNaN(startSection)) continue;
+
+                    let uid = `${name}-${day}-${startSection}-${endSection}-${weeks.join(',')}`;
+                    if (!courseSet.has(uid)) {
+                        courseSet.add(uid);
+                        courses.push({
+                            name: name,
+                            teacher: teacher,
+                            position: position,
+                            day: day,
+                            startSection: startSection,
+                            endSection: endSection,
+                            weeks: weeks
+                        });
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -258,26 +311,6 @@ async function schoolApplyTimeScheme() {
         return null;
     }
     return SCHOOL_CAMPUS_CHOICES[pick].label;
-}
-
-// ===== 课表页定位 =====
-// 强智的登录表单不支持"登录后跳转"参数，登录成功一律落在「学生个人中心」。
-// 所以 import_url 只能指向登录页（这是登录入口，不是最终目标页）；登录后由本段
-// 自动跳到课表页，省得用户手敲网址。
-const SCHOOL_TIMETABLE_URL = "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/xskb/xskb_list.do";
-
-function schoolFindTimetable() {
-    const table = document.getElementById('kbtable')
-        || document.querySelector('.table_border')
-        || document.querySelector('table');
-    return (table && table.innerText.includes('星期')) ? table : null;
-}
-
-// 判据用「退出登录」链接：只有登录之后才会渲染，未登录时不会有。
-function schoolRedirectToTimetable() {
-    if (!document.querySelector('a[href*="Logout"]')) return false;
-    window.location.href = SCHOOL_TIMETABLE_URL;
-    return true;
 }
 
 runImportFlow();
