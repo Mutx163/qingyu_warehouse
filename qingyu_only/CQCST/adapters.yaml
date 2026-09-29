@@ -22,6 +22,6 @@ adapters:
     asset_js_path: "cqcst_01.js"
     import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/"
     maintainer: "Mutx163"
-    description: "登录后在任意页面点运行即可，脚本自动获取本学期课表；导入时会问你在哪个校区。软件随后按教室名把每门课自动分到对应教学楼的作息，导入后不用再手动调整上课时间。"
+    description: "推荐用这条。登录后在任意页面点运行即可，可选择要导入哪个学期；导入时会问你在哪个校区。软件随后按教室名把每门课自动分到对应教学楼的作息，导入后不用手动调上课时间。上面那条基础版不做教学楼分流——差别只在第 3、4 节（最多 10 分钟），且只对官方单列的楼（A主 / A1 / A2）生效，不介意就用基础版也完全可以。"
     # --- 以下为轻屿专属字段，上游 schema 未定义，其它 App 会直接忽略 ---
     time_schemes_file: "time_schemes.json"

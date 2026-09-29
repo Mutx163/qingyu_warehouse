@@ -18,4 +18,4 @@ adapters:
     asset_js_path: "cqcst_01.js"
     import_url: "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/"
     maintainer: "Mutx163"
-    description: "登录后在任意页面点运行即可，脚本自动获取本学期课表。自动附带学校公布的作息时间表（两校区作息略有差异，导入时选所在校区）。"
+    description: "登录后在任意页面点运行即可，脚本自动获取课表（可选择要导入哪个学期）。自动附带学校公布的作息时间表（两校区只有第 3、4 节相差 5~15 分钟，导入时选所在校区）。"
