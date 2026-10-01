@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_475e46b1501f098c"
+version_id: "IDX_1e6c6e3907c10dc5"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -894,10 +894,6 @@ schools:
     adapters:
       - adapter_id: "NANKAI"
         adapter_name: "南开大学研究生教育综合管理系统"
-  - id: "NUSTTI"
-    adapters:
-      - adapter_id: "NUSTTI_01"
-        adapter_name: "南京理工大学泰州科技学院教务系统"
   - id: "DLUT"
     adapters:
       - adapter_id: "DLUT_01"
@@ -942,3 +938,27 @@ schools:
     adapters:
       - adapter_id: "NEFU_01"
         adapter_name: "东北林业大学本部本科生院"
+  - id: "SCETOP"
+    adapters:
+      - adapter_id: "SCETOP_01"
+        adapter_name: "四川托普信息技术职业学院-正方教务"
+  - id: "HUNAU"
+    adapters:
+      - adapter_id: "HUNAU_01"
+        adapter_name: "湖南农业大学（强智教务）"
+  - id: "YSSDUFE"
+    adapters:
+      - adapter_id: "YSSDUFE_01"
+        adapter_name: "山东财经大学燕山学院强智教务"
+  - id: "NJCIT"
+    adapters:
+      - adapter_id: "NJCIT"
+        adapter_name: "南京信息职业技术学院"
+  - id: "NUSTTI"
+    adapters:
+      - adapter_id: "NUSTTI_01"
+        adapter_name: "南京理工大学泰州科技学院教务系统"
+  - id: "QVTU"
+    adapters:
+      - adapter_id: "QVTU"
+        adapter_name: "泉州职业技术大学强智教务"
