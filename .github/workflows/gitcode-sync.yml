@@ -9,10 +9,24 @@ name: GitCode Mirror Sync
 #   2. GitHub 仓库 Settings -> Secrets and variables -> Actions：
 #      Variable GITCODE_USERNAME = GitCode 用户名（不存在时本工作流自动跳过，Fork 无需配置）；
 #      Secret  GITCODE_TOKEN    = GitCode 个人访问令牌。
+# 注意：每天 09:00（北京时间）的上游同步定时任务用系统钥匙推代码，
+# 这种推送不会再触发 push 事件（GitHub 防循环规定），所以只靠 push
+# 会漏掉机器人同步进来的新学校（2026-10-01 起的 8 所就因此在 GitCode
+# 上缺席了一周）。这里加两道保险：
+# 1) workflow_run：上游同步跑完（且成功）就跟一次，延迟只有几分钟；
+# 2) schedule：每天 10:30（北京时间）兜底，防止事件偶发漏触发。
+# 推送本身幂等（force 推同一份 main），无新提交就是空转。
 on:
   push:
     branches: [main]
     tags: ['v*']
+  workflow_run:
+    workflows: ['同步上游教务适配']
+    types: [completed]
+    branches: [main]
+  schedule:
+    # 每天 10:30（北京时间），排在上游同步（09:00）之后
+    - cron: "30 2 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +36,9 @@ concurrency:
 jobs:
   gitcode-push:
     name: Sync code to GitCode
-    if: ${{ vars.GITCODE_USERNAME }}
+    # workflow_run 只跟成功的，避免把失败的中间态推过去；
+    # 其他事件（push/定时/手动）直接跑。
+    if: ${{ vars.GITCODE_USERNAME && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
     permissions:
       contents: read
     uses: nvdacn/sync_to_gitcode/.github/workflows/PushToGitCode.yaml@18b70112d0e62260bc54085028e5510bbc6323b2 # sync_to_gitcode@master
