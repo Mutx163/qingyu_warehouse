@@ -38,11 +38,6 @@ schools:
     initial: "B"
     resource_folder: "BUPT"
 
-  - id: "CAU"
-    name: "中国农业大学"
-    initial: "C"
-    resource_folder: "CAU"
-
   - id: "CQU"
     name: "重庆大学"
     initial: "C"
@@ -1043,6 +1038,11 @@ schools:
     initial: "C"
     resource_folder: "CQEPC"
 
+  - id: "CAU"
+    name: "中国农业大学"
+    initial: "C"
+    resource_folder: "CAU"
+
   - id: "BTBU"
     name: "北京工商大学"
     initial: "B"
@@ -1222,3 +1222,13 @@ schools:
     name: "肇庆学院"
     initial: "Z"
     resource_folder: "ZQU"
+
+  - id: "HZU"
+    name: "菏泽学院"
+    initial: "H"
+    resource_folder: "HZU"
+
+  - id: "YSU"
+    name: "燕山大学"
+    initial: "Y"
+    resource_folder: "YSU"
