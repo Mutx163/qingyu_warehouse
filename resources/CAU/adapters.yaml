@@ -1,0 +1,9 @@
+# resources/CAU/adapters.yaml
+adapters:
+  - adapter_id: "CAU_01"
+    adapter_name: "本科生教务管理一体化平台"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "cau_01.js"
+    import_url: "https://newjw.cau.edu.cn/jsxsd/"
+    maintainer: "mcxufly"
+    description: "登录至首页之后需要进入 个人课表（学期课表）"

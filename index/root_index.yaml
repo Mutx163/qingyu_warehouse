@@ -38,6 +38,11 @@ schools:
     initial: "B"
     resource_folder: "BUPT"
 
+  - id: "CAU"
+    name: "中国农业大学"
+    initial: "C"
+    resource_folder: "CAU"
+
   - id: "CQU"
     name: "重庆大学"
     initial: "C"
