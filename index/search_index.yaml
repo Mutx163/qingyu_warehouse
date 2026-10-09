@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_c63ef0df8b56a411"
+version_id: "IDX_20f002c6e77d61ee"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -222,6 +222,10 @@ schools:
     adapters:
       - adapter_id: "NUAA_01"
         adapter_name: "南京航空航天大学树维教务"
+  - id: "USC"
+    adapters:
+      - adapter_id: "USC_01"
+        adapter_name: "南华大学强智教务"
   - id: "XMCU"
     adapters:
       - adapter_id: "XMCU_01"
@@ -926,10 +930,6 @@ schools:
     adapters:
       - adapter_id: "XCU_01"
         adapter_name: "许昌学院"
-  - id: "XMU"
-    adapters:
-      - adapter_id: "XMU_01"
-        adapter_name: "厦门大学教务服务平台"
   - id: "GDKM"
     adapters:
       - adapter_id: "GDKM"
@@ -994,3 +994,23 @@ schools:
     adapters:
       - adapter_id: "YSU_YJS"
         adapter_name: "燕山大学研究生管理系统"
+  - id: "XHKJZYXY"
+    adapters:
+      - adapter_id: "XHKJZYXY_01"
+        adapter_name: "宣化科技职业学院正方适配"
+  - id: "XMU"
+    adapters:
+      - adapter_id: "XMU_01"
+        adapter_name: "厦门大学教务服务平台"
+  - id: "HEBAU"
+    adapters:
+      - adapter_id: "HEBAU"
+        adapter_name: "河北农业大学教务系统"
+  - id: "BNUZH"
+    adapters:
+      - adapter_id: "BNUZH_01"
+        adapter_name: "北京师范大学珠海校区金智教务"
+  - id: "SCTBC"
+    adapters:
+      - adapter_id: "SCTBC_01"
+        adapter_name: "四川工商职业技术学院教务系统"
