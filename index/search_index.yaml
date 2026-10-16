@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_dc2012b2a74e2a8e"
+version_id: "IDX_e68ef0ed0728b702"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -1040,3 +1040,7 @@ schools:
     adapters:
       - adapter_id: "HEBEU_01"
         adapter_name: "河北工程大学教务系统"
+  - id: "LIDAPOLY"
+    adapters:
+      - adapter_id: "LIDAPOLY"
+        adapter_name: "上海立达学院教务系统"
