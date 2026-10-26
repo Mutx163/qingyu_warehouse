@@ -1298,11 +1298,6 @@ schools:
     initial: "X"
     resource_folder: "SWFU"
     
-  - id: "XMU"
-    name: "厦门大学"
-    initial: "X"
-    resource_folder: "XMU"
-
   - id: "BJTU"
     name: "北京交通大学"
     initial: "B"
@@ -1337,3 +1332,18 @@ schools:
     name: "贵州机电职业技术学院"
     initial: "G"
     resource_folder: "GZTCME"
+
+  - id: "GZHMU"
+    name: "广州医科大学"
+    initial: "G"
+    resource_folder: "GZHMU"
+
+  - id: "XSYU"
+    name: "西安石油大学"
+    initial: "X"
+    resource_folder: "XSYU"
+    
+  - id: "XMU"
+    name: "厦门大学"
+    initial: "X"
+    resource_folder: "XMU"
