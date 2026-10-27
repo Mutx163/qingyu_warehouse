@@ -1198,11 +1198,6 @@ schools:
     initial: "N"
     resource_folder: "NJCIT"
 
-  - id: "NUSTTI"
-    name: "南京理工大学泰州科技学院"
-    initial: "N"
-    resource_folder: "NUSTTI"
-
   - id: "QVTU"
     name: "泉州职业技术大学"
     initial: "Q"
@@ -1347,3 +1342,13 @@ schools:
     name: "厦门大学"
     initial: "X"
     resource_folder: "XMU"
+
+  - id: "SMU"
+    name: "南方医科大学"
+    initial: "N"
+    resource_folder: "SMU"
+    
+  - id: "NUSTTI"
+    name: "南京理工大学泰州科技学院"
+    initial: "N"
+    resource_folder: "NUSTTI"
