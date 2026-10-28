@@ -1,0 +1,9 @@
+# resources/SDYU/adapters.yaml
+adapters:
+  - adapter_id: "SDYU_01"
+    adapter_name: "山东青年政治学院正方教务"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "sdyu.js"
+    import_url: "https://jw.sdyu.edu.cn"
+    maintainer: "Mutx163"
+    description: "适配山东青年政治学院正方教务系统（jwglxt）。登录后在任意页面执行导入，自动读取学年学期，写入开学日期、总周数与教务系统真实作息时间。"
