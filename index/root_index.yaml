@@ -543,11 +543,6 @@ schools:
     initial: "S"
     resource_folder: "SDNU"
 
-  - id: "SDYU"
-    name: "山东青年政治学院"
-    initial: "S"
-    resource_folder: "SDYU"
-
   - id: "CUPK"
     name: "中国石油大学（北京）克拉玛依校区"
     initial: "Z"
@@ -1317,6 +1312,11 @@ schools:
     name: "山东水利职业学院"
     initial: "S"
     resource_folder: "SDWCVC"
+
+  - id: "SDYU"
+    name: "山东青年政治学院"
+    initial: "S"
+    resource_folder: "SDYU"
 
   - id: "HBDFXY"
     name: "河北东方学院"
