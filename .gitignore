@@ -39,6 +39,10 @@ __pycache__/
 # OMX local state
 .omx/
 
+# WorkBuddy 本地状态
+.workbuddy/
+.workbuddy-ai/
+
 # Upstream additions
 .vscode/*
 !.vscode/extensions.json

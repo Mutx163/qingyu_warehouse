@@ -31,7 +31,7 @@ from warehouse_upstream_compat import (
 )
 
 UPSTREAM_REMOTE = "upstream"
-UPSTREAM_REPO = "https://github.com/XingHeYuZhuan/shiguang_warehouse.git"
+UPSTREAM_REPO = "https://github.com/ShiGuangSchedule/shiguang_warehouse.git"
 UPSTREAM_BRANCH = "main"
 UPSTREAM_REF = f"{UPSTREAM_REMOTE}/{UPSTREAM_BRANCH}"
 ORIGIN_BRANCH = "main"

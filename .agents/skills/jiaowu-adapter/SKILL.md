@@ -447,7 +447,7 @@ git commit -m "feat(适配): 新增 <学校名>(<SCHOOL_ID>) <平台> 教务课�
 - **fork 用户**：推到自己的 fork，向 `Mutx163/qingyu_warehouse` 开 PR（App 读这个 fork 的 main）。
 - **维护者**：`git push origin HEAD:main`。网络 SSL handshake 偶发失败就重试。
 - 合并后二进制发布（`school_index.pb` → `index-pb-release` 分支）由维护者手动触发 `.github/workflows/build-index.yml`，提交人无需操心。
-- 可选：如需同步上游 `XingHeYuZhuan/shiguang_warehouse`，另行走上游贡献流程，不与本次适配混在同一提交。
+- 可选：如需同步上游 `ShiGuangSchedule/shiguang_warehouse`，另行走上游贡献流程，不与本次适配混在同一提交。
 
 ---
 

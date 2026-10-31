@@ -152,5 +152,5 @@ Alpha 跑通后，再做正式接入：
 
 感谢上游仓库和所有适配贡献者的工作：
 
-- [XingHeYuZhuan/shiguang_warehouse](https://github.com/XingHeYuZhuan/shiguang_warehouse)
-- [XingHeYuZhuan/shiguang_Tester](https://github.com/XingHeYuZhuan/shiguang_Tester)
+- [ShiGuangSchedule/shiguang_warehouse](https://github.com/ShiGuangSchedule/shiguang_warehouse)
+- [ShiGuangSchedule/shiguang_Tester](https://github.com/ShiGuangSchedule/shiguang_Tester)

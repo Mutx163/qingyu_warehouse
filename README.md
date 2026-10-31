@@ -144,7 +144,7 @@ docs/
 
 本仓库 fork 自：
 
-- [XingHeYuZhuan/shiguang_warehouse](https://github.com/XingHeYuZhuan/shiguang_warehouse)
+- [ShiGuangSchedule/shiguang_warehouse](https://github.com/ShiGuangSchedule/shiguang_warehouse)
 
 同时也吸收了上游测试工具思路，并在本仓库内保留浏览器扩展目录，方便贡献者直接从浏览器侧进入适配流程。
 
@@ -196,5 +196,5 @@ docs/
 - [插件工作台说明](./tools/CourseImporterTestTool/README.md)
 - [快速开始](./docs/QUICK_START.md)
 - [脚本 API](./docs/SCRIPT_API.md)
-- [上游适配仓](https://github.com/XingHeYuZhuan/shiguang_warehouse)
-- [上游测试工具](https://github.com/XingHeYuZhuan/shiguang_Tester)
+- [上游适配仓](https://github.com/ShiGuangSchedule/shiguang_warehouse)
+- [上游测试工具](https://github.com/ShiGuangSchedule/shiguang_Tester)
