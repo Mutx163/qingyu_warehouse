@@ -31,6 +31,12 @@ jobs:
       - name: Run compatibility tests
         run: python tests/test_warehouse_upstream_compat.py -v
 
+      # App 逐行解析 adapters.yaml：段头带行内注释、列表项 0 缩进都会让整校
+      # 解析出 0 条（「未读取到 XX 的适配器信息」）。同步脚本已自动规范化，
+      # 这里钉住仓内文件本身也都是 App 可读样式。
+      - name: 检查 adapters.yaml 是否 App 可解析
+        run: python tests/test_adapters_yaml_style.py -v
+
       # 每日同步的提交信息会原样发到维护者邮箱，学校必须带中文名
       - name: 检查同步提交信息可读性
         run: python tests/test_sync_commit_message.py -v

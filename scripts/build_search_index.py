@@ -111,6 +111,7 @@ def parse_adapters(text: str) -> list[dict[str, str]]:
     adapters: list[dict[str, str]] = []
     in_adapters = False
     current: dict[str, str] | None = None
+    item_indent = 0
 
     def _flush() -> None:
         nonlocal current
@@ -123,21 +124,25 @@ def parse_adapters(text: str) -> list[dict[str, str]]:
         if not stripped or stripped.startswith("#"):
             continue
         indent = len(raw_line) - len(raw_line.lstrip(" "))
-        if indent == 0:
-            if stripped == "adapters:":
-                in_adapters = True
-            elif in_adapters:
-                _flush()
-                in_adapters = False
-            continue
         if not in_adapters:
+            # 上游存在 `adapters: #固定字段` 写法，_yaml_scalar 会剥掉行内注释，
+            # 因此这里不能用 `stripped == "adapters:"` 硬匹配。
+            if indent == 0 and _yaml_scalar(stripped, "adapters") is not None:
+                in_adapters = True
             continue
-        if indent == 2 and stripped.startswith("- "):
+        # 列表项缩进不固定：本仓规范是 2 空格，上游部分学校写成 0 缩进。
+        if stripped.startswith("- "):
             _flush()
+            item_indent = indent
             # 跳过列表前缀 "- " 后再解析键值
             current = {"adapter_id": _yaml_scalar_unquoted(stripped[2:].lstrip(), "adapter_id")}
             continue
-        if current is not None:
+        if indent == 0:
+            # 下一个顶层键：adapters 列表结束
+            _flush()
+            in_adapters = False
+            continue
+        if current is not None and indent > item_indent:
             value = _yaml_scalar(stripped, "adapter_name")
             if value is not None:
                 current["adapter_name"] = value

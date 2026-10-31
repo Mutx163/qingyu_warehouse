@@ -1,4 +1,4 @@
-adapters: #固定字段
+adapters:
   - adapter_id: "UJS_01"
     adapter_name: "江苏大学教务系统"
     category: "BACHELOR_AND_ASSOCIATE"

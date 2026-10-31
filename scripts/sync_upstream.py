@@ -382,6 +382,67 @@ def checkout_upstream_paths(warehouse_dir: Path, paths: list[str]) -> None:
     run_git(["checkout", UPSTREAM_REF, "--", *paths], warehouse_dir)
 
 
+_ADAPTERS_HEADER = re.compile(r"adapters:\s*(#.*)?")
+
+
+def normalize_adapters_yaml_text(text: str) -> str:
+    """把上游写法的 adapters.yaml 规范成 App 行级解析器认识的扁平样式。
+
+    App 端（以及本仓旧的索引生成器）逐行解析 adapters.yaml，只认
+    0 缩进的 ``adapters:`` 与 2 空格缩进的 ``- `` 列表项；上游存在两种
+    读不出来的写法：
+
+    - ``adapters: #固定字段``（section 头带行内注释）
+    - 列表项及其字段完全不缩进
+
+    这里只做最小改写：去掉 section 头的行内注释、给 0 缩进列表项整体补
+    2 空格。其余字节（行尾、引号、字段顺序、注释）原样保留，已规范的文本
+    返回内容不变。
+    """
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    header_seen = False
+    indent_items = False
+
+    for line in lines:
+        body = line.rstrip("\r\n")
+        eol = line[len(body):]
+        stripped = body.strip()
+
+        if not header_seen and _ADAPTERS_HEADER.fullmatch(body):
+            out.append("adapters:" + eol)
+            header_seen = True
+            continue
+
+        if header_seen and stripped and not stripped.startswith("#"):
+            indent = len(body) - len(body.lstrip(" "))
+            if indent == 0:
+                # 列表项在 0 缩进说明整段都需要右移；顶层键则说明列表结束。
+                indent_items = stripped.startswith("- ")
+
+        if header_seen and indent_items and stripped:
+            out.append("  " + body + eol)
+        else:
+            out.append(line)
+
+    return "".join(out)
+
+
+def normalize_adapters_style(warehouse_dir: Path, folders: list[str]) -> int:
+    """就地规范化本次落盘学校的 adapters.yaml，返回改写文件数。"""
+    changed = 0
+    for folder in folders:
+        path = warehouse_dir / "resources" / folder / "adapters.yaml"
+        if not path.is_file():
+            continue
+        text = path.read_bytes().decode("utf-8")
+        normalized = normalize_adapters_yaml_text(text)
+        if normalized != text:
+            path.write_bytes(normalized.encode("utf-8"))
+            changed += 1
+    return changed
+
+
 def _strip_trailing_blank_lines(lines: list[str]) -> list[str]:
     end = len(lines)
     while end > 0 and not lines[end - 1].strip():
@@ -809,6 +870,12 @@ def main() -> int:
                 else ""
             )
             checkout_upstream_paths(warehouse_dir, plan.resource_paths)
+
+            # 上游部分学校用 App 行级解析器读不出来的写法（0 缩进列表项、
+            # `adapters: #注释`）。检出后立刻规范化，避免每天同步把坏样式带回。
+            normalized = normalize_adapters_style(warehouse_dir, plan.touched_folders)
+            if normalized:
+                print(f"[5.2/6] Normalized {normalized} adapters.yaml to App-compatible style")
 
             if index_in_paths:
                 merged_ok, merge_detail = merge_index_after_checkout(

@@ -1,4 +1,4 @@
-adapters: #固定字段
+adapters:
   - adapter_id: "JLU_01" # id加上序号
     adapter_name: "吉林大学（新）教务管理系统"
     category: "BACHELOR_AND_ASSOCIATE"

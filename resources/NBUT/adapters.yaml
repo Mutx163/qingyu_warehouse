@@ -1,4 +1,4 @@
-adapters: #固定字段
+adapters:
   - adapter_id: "NBUT_01"
     adapter_name: "宁波工程学院教务系统适配"
     category: "BACHELOR_AND_ASSOCIATE"

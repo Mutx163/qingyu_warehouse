@@ -1,4 +1,4 @@
-adapters: #固定字段
+adapters:
   - adapter_id: "WHCB_1" # id加上序号
     adapter_name: "武汉船舶职业技术学院"
     category: "BACHELOR_AND_ASSOCIATE"
