@@ -1,0 +1,9 @@
+# resources/JXUTCM/adapters.yaml
+adapters:
+  - adapter_id: "JXUTCM"
+    adapter_name: "江西中医药大学教务系统"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "jxutcm.js"
+    import_url: "https://jiaowu.jxutcm.edu.cn/"
+    maintainer: "ShyButHandsome"
+    description: "乘方新教务（ntss/entss）适配。先登录教务系统（jiaowu.jxutcm.edu.cn），再点导入；可选择学期，自动识别开学日期、总周数与节次作息"
