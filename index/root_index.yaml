@@ -198,11 +198,6 @@ schools:
     initial: "J"
     resource_folder: "JXUST"
 
-  - id: "JXUTCM"
-    name: "江西中医药大学"
-    initial: "J"
-    resource_folder: "JXUTCM"
-
   - id: "GZST"
     name: "广州松田职业学院"
     initial: "G"
@@ -1367,6 +1362,11 @@ schools:
     name: "济南工程职业技术学院"
     initial: "J"
     resource_folder: "JNGCXY"
+
+  - id: "JXUTCM"
+    name: "江西中医药大学"
+    initial: "J"
+    resource_folder: "JXUTCM"
 
   - id: "ZSC"
     name: "电子科技大学中山学院"
