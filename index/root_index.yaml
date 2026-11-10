@@ -1318,6 +1318,11 @@ schools:
     initial: "S"
     resource_folder: "SDYU"
 
+  - id: "SDU"
+    name: "山东大学"
+    initial: "S"
+    resource_folder: "SDU"
+
   - id: "HBUE"
     name: "湖北经济学院"
     initial: "H"
