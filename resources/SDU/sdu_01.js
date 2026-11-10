@@ -19,7 +19,8 @@
  * 来源与差异：骨架参考仓库内 resources/NJFU/njfu_01.js（同为强智老版 #timetable 结构），
  * 针对本校实测差异改写：①周次文本带「第」前缀（第4-17周(周)[01-02节]），解析前先剥离；
  * ②「教室」字段把教学楼名重复拼接（青岛校区振声苑青岛校区振声苑W102），按 jxlmc 收敛；
- * ③课表页没有单双周标记，也没有任何节次时分，作息由脚本内置（见 TIME_SLOTS 注释）。
+ * ③课表页没有单双周标记，也没有任何节次时分，作息由脚本内置（见 TIME_SLOTS 注释）；
+ * ④晚上只有第 9、10 两节，第五大节行标签里的「11 小节」是系统模板遗留，解析时收敛。
  */
 
 const TIMETABLE_URL = "/jsxsd/xskb/xskb_list.do?viweType=0&zc=&cj0701id=";
@@ -28,8 +29,10 @@ const CURRENT_WEEK_URL = "/jsxsd/framework/xsMainV_new.htmlx?t1=1";
 /* 节次时间：教务站不返回每节具体时分（课表页、首页课表挂件、jxzlzc_xnxq_ajax、校历接口都没有），
  * 这里按青岛校区作息内置：每节 50 分钟、课间 10 分钟（第 2/3 节与第 6/7 节之间是大课间 20 分钟），
  * 上午 08:00 起、下午 14:00 起、晚上 19:00 起。
- * 注意 #timetable 的一个格对应两个小节（01-02 / 03-04 / 05-06 / 07-08 / 09-11），
- * 中间是有课间休息的，所以课程记作 startSection..endSection 两个独立小节，而不是合成长课。 */
+ * 注意 #timetable 的一个格对应两个小节（01-02 / 03-04 / 05-06 / 07-08 / 09-10），
+ * 中间是有课间休息的，所以课程记作 startSection..endSection 两个独立小节，而不是合成长课。
+ * 第五大节的行标签写的是「(09,10,11小节)」，但学校实际只排到第 10 节，晚上没有第 11 节，
+ * 所以 TIME_SLOTS 只到 10，解析时超出的小节号统一收敛到 10。 */
 const TIME_SLOTS = [
     { number: 1, startTime: "08:00", endTime: "08:50" },
     { number: 2, startTime: "09:00", endTime: "09:50" },
@@ -40,9 +43,11 @@ const TIME_SLOTS = [
     { number: 7, startTime: "16:10", endTime: "17:00" },
     { number: 8, startTime: "17:10", endTime: "18:00" },
     { number: 9, startTime: "19:00", endTime: "19:50" },
-    { number: 10, startTime: "20:00", endTime: "20:50" },
-    { number: 11, startTime: "21:00", endTime: "21:50" }
+    { number: 10, startTime: "20:00", endTime: "20:50" }
 ];
+
+/* 学校实际只有 10 个小节（第五大节标签里的 11 小节是教务系统模板遗留，排课不会用到） */
+const MAX_SECTION = TIME_SLOTS.length;
 
 const DEFAULT_CLASS_DURATION = 50;
 const DEFAULT_BREAK_DURATION = 10;
@@ -142,13 +147,27 @@ function cleanPosition(roomText, buildingText) {
     return text || "待定";
 }
 
+/* 小节号收敛到 1..MAX_SECTION（第五节标签的 11 小节并不存在） */
+function clampSections(startSection, endSection) {
+    const start = Math.min(Math.max(Number(startSection) || 0, 0), MAX_SECTION);
+    const end = Math.min(Math.max(Number(endSection) || 0, 0), MAX_SECTION);
+    if (!start || !end) return { startSection: 0, endSection: 0 };
+    return start <= end
+        ? { startSection: start, endSection: end }
+        : { startSection: end, endSection: start };
+}
+
 function parseSectionRange(weekText, fallbackSections) {
-    const bracket = String(weekText || "").match(/\[([^\]]*)\]节/);
+    /* 周次文本形如「第4-17周(周)[01-02节]」，节次范围在方括号里 */
+    const bracket = String(weekText || "").match(/\[([^\]]*)\]/);
     const values = bracket ? (bracket[1].match(/\d+/g) || []).map(Number) : [];
     if (values.length) {
-        return { startSection: values[0], endSection: values[values.length - 1] };
+        return clampSections(values[0], values[values.length - 1]);
     }
-    return fallbackSections || { startSection: 0, endSection: 0 };
+    if (fallbackSections) {
+        return clampSections(fallbackSections.startSection, fallbackSections.endSection);
+    }
+    return { startSection: 0, endSection: 0 };
 }
 
 /* 行标签形如「第一节 (01,02小节)」「第五节 (09,10,11小节)」，括号里才是真实小节号 */
@@ -157,10 +176,7 @@ function parseRowSections(labelText) {
     const inner = text.match(/[（(]([\d,，\s]+)小节[)）]/);
     const values = (inner ? inner[1] : text).match(/\d+/g);
     if (!values || !values.length) return { startSection: 0, endSection: 0 };
-    return {
-        startSection: Number(values[0]),
-        endSection: Number(values[values.length - 1])
-    };
+    return clampSections(values[0], values[values.length - 1]);
 }
 
 /* 课程块第一行是课名，形如「课程名(sd00000000 - 0 )」 */
