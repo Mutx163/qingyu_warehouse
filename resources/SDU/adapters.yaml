@@ -1,0 +1,9 @@
+# resources/SDU/adapters.yaml
+adapters:
+  - adapter_id: "SDU_01"
+    adapter_name: "山东大学强智教务"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "sdu_01.js"
+    import_url: "http://bkzhjx.wh.sdu.edu.cn/sso.jsp"
+    maintainer: "ziui1"
+    description: "山东大学强智教务课表适配。入口走「智慧教学服务平台」的单点登录 sso.jsp，点网页登录后会进学校统一身份认证（pass.sdu.edu.cn），认证通过自动回到「智慧教学管理与服务平台」，在任意页面点运行即可导入（注意：直接访问 /jsxsd/ 那个地址学生账号登不进去，必须走统一认证）。仅支持当前学期：学期下拉只有一项，切到其它学期课表为空。教务系统不返回每节作息时间，脚本内置青岛校区作息（每节 50 分钟、课间 10 分钟，08:00 起）——其它校区作息不同的话，导入后需要在课表设置里改一下时间模板。注意课表上的一个格子是两个小节（如 01-02 节），中间有课间休息，导入后是两个连续小节而不是一节长课；个别课程教务页本身不写教室，导入后地点显示「待定」。"
