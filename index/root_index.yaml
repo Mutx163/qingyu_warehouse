@@ -923,6 +923,11 @@ schools:
     initial: "Z"
     resource_folder: "ZZVCAE"
 
+  - id: "ZZUCVC"
+    name: "郑州城建职业学院"
+    initial: "Z"
+    resource_folder: "ZZUCVC"
+
   - id: "LNU"
     name: "辽宁大学"
     initial: "L"

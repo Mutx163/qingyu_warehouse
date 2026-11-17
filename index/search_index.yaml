@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_03612703e5858daa"
+version_id: "IDX_992e8e445b7eb632"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -768,6 +768,12 @@ schools:
     adapters:
       - adapter_id: "zzvcae_01"
         adapter_name: "郑州汽车工程职业学院"
+  - id: "ZZUCVC"
+    adapters:
+      - adapter_id: "ZZUCVC_01"
+        adapter_name: "郑州城建职业学院青果教务（教务系统直连）"
+      - adapter_id: "ZZUCVC_02"
+        adapter_name: "郑州城建职业学院青果教务（智慧校园门户入口）"
   - id: "LNU"
     adapters:
       - adapter_id: "LNU_01"

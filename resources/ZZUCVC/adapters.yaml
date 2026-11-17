@@ -1,0 +1,17 @@
+# resources/ZZUCVC/adapters.yaml
+adapters:
+  - adapter_id: "ZZUCVC_01"
+    adapter_name: "郑州城建职业学院青果教务（教务系统直连）"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "zzucvc_01.js"
+    import_url: "https://jwxt.zzucvc.edu.cn/cas/login.action"
+    maintainer: "Mutx163"
+    description: "从教务系统直连入口登录（jwxt.zzucvc.edu.cn），使用教务系统自己的账号密码。登录后无需切换到课表页面，脚本直接通过教务接口获取学期列表、课表、作息与开学日期。适用于已单独开通教务系统密码的学生。"
+
+  - adapter_id: "ZZUCVC_02"
+    adapter_name: "郑州城建职业学院青果教务（智慧校园门户入口）"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "zzucvc_01.js"
+    import_url: "https://portal.zzucvc.edu.cn/portal-pc/pc/zzcj/index.html#/"
+    maintainer: "Mutx163"
+    description: "从智慧校园统一身份认证入口登录（portal.zzucvc.edu.cn），使用门户账号，适用于教务系统未单独开通密码的学生。登录门户后，请在「应用中心」或首页应用列表打开「教务管理系统」进入教务系统，再在教务系统页面执行本导入。导入过程与教务系统直连入口一致。"
