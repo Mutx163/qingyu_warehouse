@@ -1323,6 +1323,16 @@ schools:
     initial: "S"
     resource_folder: "SDYU"
 
+  - id: "SDU"
+    name: "山东大学"
+    initial: "S"
+    resource_folder: "SDU"
+
+  - id: "HBUE"
+    name: "湖北经济学院"
+    initial: "H"
+    resource_folder: "HBUE"
+
   - id: "HBDFXY"
     name: "河北东方学院"
     initial: "H"
@@ -1368,7 +1378,27 @@ schools:
     initial: "J"
     resource_folder: "JNGCXY"
 
+  - id: "JXUTCM"
+    name: "江西中医药大学"
+    initial: "J"
+    resource_folder: "JXUTCM"
+
   - id: "ZSC"
     name: "电子科技大学中山学院"
     initial: "Z"
     resource_folder: "ZSC"
+
+  - id: "WIT"
+    name: "武汉工程大学"
+    initial: "W"
+    resource_folder: "WIT"
+
+  - id: "GXSTNU"
+    name: "广西科技师范学院"
+    initial: "G"
+    resource_folder: "GXSTNU"
+
+  - id: "HUWAI"
+    name: "湖南外国语职业学院"
+    initial: "H"
+    resource_folder: "HUWAI"
