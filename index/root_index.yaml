@@ -38,6 +38,11 @@ schools:
     initial: "B"
     resource_folder: "BUPT"
 
+  - id: "CPPU"
+    name: "中国人民警察大学"
+    initial: "Z"
+    resource_folder: "CPPU"
+
   - id: "CQU"
     name: "重庆大学"
     initial: "C"

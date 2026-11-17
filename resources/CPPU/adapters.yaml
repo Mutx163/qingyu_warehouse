@@ -1,0 +1,9 @@
+# resources/CPPU/adapters.yaml
+adapters:
+  - adapter_id: "CPPU_01"
+    adapter_name: "中国人民警察大学智慧教务"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "cppu.js"
+    import_url: "https://jw.cppu.edu.cn/"
+    maintainer: "lwr486"
+    description: "登录后进入我的课程表→我的课表→课表明细，先清除搜索并筛选所需学期，再导入。自动读取列表全部分页，按上课日期换算周次；需填写该学期第一周周一日期。作息时间请在 App 内设置。"
