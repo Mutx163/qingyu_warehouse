@@ -1,0 +1,8 @@
+adapters:
+  - adapter_id: "HBPU_01"
+    adapter_name: "湖北理工学院教务系统"
+    category: "BACHELOR_AND_ASSOCIATE"
+    asset_js_path: "hbpu.js"
+    import_url: "https://jwglnew.hbpu.edu.cn/xtgl/login_slogin.html"
+    maintainer: "TpoarSerx"
+    description: "正方教务 V9 新一代（前端 zftal-ui-v5，根路径部署）。登录教务系统后停留在任意页面点击导入即可，学年学期弹窗确认（默认当前学期），自动附带节次作息与学期校历（开学日期、总周数）。"
