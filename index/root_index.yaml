@@ -533,7 +533,6 @@ schools:
     initial: "H"
     resource_folder: "HBPU"
 
-
   - id: "HBUAS"
     name: "湖北文理学院"
     initial: "H"
