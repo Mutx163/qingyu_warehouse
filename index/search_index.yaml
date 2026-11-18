@@ -448,6 +448,12 @@ schools:
     adapters:
       - adapter_id: "HBMZU"
         adapter_name: "湖北民族大学教务系统"
+
+- id: "HBPU"
+    adapters:
+      - adapter_id: "HBPU_01"
+        adapter_name: "湖北理工学院教务系统"
+        
   - id: "HBUAS"
     adapters:
       - adapter_id: "HBUAS_01"
