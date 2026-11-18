@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_9f0816f1c0d36277"
+version_id: "IDX_01329f37559b2eae"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -1134,10 +1134,6 @@ schools:
     adapters:
       - adapter_id: "JNGCXY_01"
         adapter_name: "济南工程职业技术学院正方教务"
-  - id: "JXUTCM"
-    adapters:
-      - adapter_id: "JXUTCM"
-        adapter_name: "江西中医药大学教务系统"
   - id: "ZSC"
     adapters:
       - adapter_id: "ZSC_01"
@@ -1164,3 +1160,11 @@ schools:
     adapters:
       - adapter_id: "FSPT_01"
         adapter_name: "佛山职业技术学院综合教务（强智）"
+  - id: "JLUCT"
+    adapters:
+      - adapter_id: "JLUCT_01"
+        adapter_name: "吉林化工大学乘方教务"
+  - id: "JXUTCM"
+    adapters:
+      - adapter_id: "JXUTCM"
+        adapter_name: "江西中医药大学教务系统"
