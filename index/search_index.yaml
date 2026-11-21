@@ -2,7 +2,7 @@
 # 由 scripts/build_search_index.py 自动生成，请勿手动编辑。
 # 用途：轻屿课表教务导入的「按适配器（脚本）名称搜索」全局索引——
 # App 一次请求即可覆盖全部学校的细分脚本，无需逐校拉取 adapters.yaml。
-version_id: "IDX_a8419b7e5aad69f6"
+version_id: "IDX_2219d878e1b4c693"
 schools:
   - id: "GLOBAL_TOOLS"
     adapters:
@@ -440,6 +440,10 @@ schools:
     adapters:
       - adapter_id: "DLU_01"
         adapter_name: "大连大学教务系统"
+  - id: "DLNU"
+    adapters:
+      - adapter_id: "DLNU_01"
+        adapter_name: "大连民族大学教务系统"
   - id: "HBMU"
     adapters:
       - adapter_id: "HBMU_01"
@@ -944,6 +948,10 @@ schools:
     adapters:
       - adapter_id: "QFNU_01"
         adapter_name: "曲阜师范大学强智教务"
+  - id: "QJNU"
+    adapters:
+      - adapter_id: "QJNU_01"
+        adapter_name: "曲靖师范学院教务系统"
   - id: "SCEMI"
     adapters:
       - adapter_id: "SCEMI_01"
